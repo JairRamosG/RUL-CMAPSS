@@ -30,3 +30,8 @@ mlruns/
 
 # Opencode
 .atl/
+.agents/
+skills-lock.json
+
+# Referencias bibliográficas
+references/
