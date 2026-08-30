@@ -1,0 +1,28 @@
+# Ignorar la carpeta _docs y todo su contenido
+_docs/
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+ENV/
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Tests y cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs y bases de datos locales de MLflow
+mlruns/
+*.log
+
+# Archivos de configuración del sistema / IDEs
+.DS_Store
+.vscode/
+.idea/
