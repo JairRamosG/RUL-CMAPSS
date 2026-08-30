@@ -26,3 +26,6 @@ mlruns/
 .DS_Store
 .vscode/
 .idea/
+
+# Opencode
+.atl/
