@@ -132,6 +132,19 @@ class TestProfileResourceUsage:
         
         assert profiler.elapsed_time > 0
         assert profiler.peak_memory_mb > 0
+    
+    def test_to_dict(self):
+        """Test that profiler can be converted to dict."""
+        with profile_resource_usage() as profiler:
+            pass
+        
+        result = profiler.to_dict()
+        
+        assert isinstance(result, dict)
+        assert "elapsed_time" in result
+        assert "peak_memory_mb" in result
+        assert result["elapsed_time"] >= 0
+        assert result["peak_memory_mb"] > 0
 
 
 class TestGetSystemInfo:

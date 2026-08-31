@@ -44,6 +44,17 @@ class ResourceProfiler:
         current_memory = psutil.Process().memory_info().rss / (1024 * 1024)
         self.peak_memory_mb = max(self.peak_memory_mb, current_memory)
         return False
+    
+    def to_dict(self) -> Dict[str, float]:
+        """Convert profiler results to dictionary.
+        
+        Returns:
+            Dictionary with elapsed_time and peak_memory_mb keys.
+        """
+        return {
+            "elapsed_time": self.elapsed_time,
+            "peak_memory_mb": self.peak_memory_mb,
+        }
 
 
 @contextmanager

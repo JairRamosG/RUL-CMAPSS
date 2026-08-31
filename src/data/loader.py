@@ -6,11 +6,14 @@ from the NASA prognostics data repository.
 """
 
 import os
+import logging
 from pathlib import Path
 from typing import Tuple, List
 
 import pandas as pd
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 # Column names for C-MAPSS dataset
@@ -58,6 +61,9 @@ def load_cmapss(subset: str, data_dir: str = "datos") -> Tuple[pd.DataFrame, pd.
         ValueError: If subset is not one of FD001, FD002, FD003, FD004.
         FileNotFoundError: If data files are not found.
     """
+    # Normalize subset input
+    subset = subset.strip().upper()
+    
     # Validate subset
     if subset not in VALID_SUBSETS:
         raise ValueError(
@@ -105,11 +111,11 @@ def load_cmapss(subset: str, data_dir: str = "datos") -> Tuple[pd.DataFrame, pd.
     # Check for null values
     null_counts = train_df.isnull().sum().sum()
     if null_counts > 0:
-        print(f"Warning: {null_counts} null values found in training data")
+        logger.warning(f"{null_counts} null values found in training data")
     
     null_counts = test_df.isnull().sum().sum()
     if null_counts > 0:
-        print(f"Warning: {null_counts} null values found in test data")
+        logger.warning(f"{null_counts} null values found in test data")
     
     if rul_df.empty:
         raise ValueError(f"RUL file is empty: {rul_file}")

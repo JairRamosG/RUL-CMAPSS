@@ -89,6 +89,21 @@ class TestLoadCmapss:
         with pytest.raises(ValueError, match="Invalid subset"):
             load_cmapss("FD005")
     
+    def test_case_insensitive_subset(self):
+        """Test that subset input is case-insensitive."""
+        train1, _, _ = load_cmapss("fd001")
+        train2, _, _ = load_cmapss("FD001")
+        train3, _, _ = load_cmapss("Fd001")
+        
+        assert train1.shape == train2.shape == train3.shape
+    
+    def test_whitespace_in_subset(self):
+        """Test that whitespace in subset is trimmed."""
+        train1, _, _ = load_cmapss("FD001")
+        train2, _, _ = load_cmapss("  FD001  ")
+        
+        assert train1.shape == train2.shape
+    
     def test_unit_numbers_are_integers(self):
         """Test that unit_number values are integers."""
         train, test, rul = load_cmapss("FD001")
