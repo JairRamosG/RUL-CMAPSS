@@ -1,0 +1,104 @@
+# =============================================================================
+# Configuracion Experimental - FD004
+# =============================================================================
+# Escenario: 6 condiciones operativas / 2 modos de falla (HPC + Fan)
+# 
+# Descripcion:
+#   Este es el subconjunto mas complejo del benchmark C-MAPSS. Combina la alta
+#   variabilidad operativa de FD002 (6 condiciones) con los multiples modos de
+#   falla de FD003 (HPC + Fan). Representa el desafio maximo de generalizacion
+#   ya que los modelos deben discriminar entre diferentes modos de falla mientras
+#   manejan fluctuaciones en las condiciones de operacion.
+#
+# Caracteristicas clave:
+#   - 249 motores de entrenamiento, 248 de prueba
+#   - 6 condiciones operativas (altitud, velocidad, regimen de vuelo)
+#   - Dos modos de falla: HPC degradation + Fan degradation
+#   - Escenario mas ruidoso y complejo del benchmark
+#   - Requiere EDA para identificar sensores criticos
+# =============================================================================
+
+subset: "FD004"
+description: >
+  Escenario de maxima complejidad del benchmark C-MAPSS. Combina 6 condiciones
+  operativas (altitud, velocidad, regimen de vuelo) con dos modos de falla
+  (degradacion del compresor de alta presion - HPC y degradacion del ventilador
+  - Fan). Este subconjunto representa el desafio mas dificil de generalizacion
+  donde los modelos deben discriminar entre multiples patrones de degradacion
+  mientras manejan la variabilidad ambiental. Los sensores a remover deben
+  determinarse mediante EDA.
+
+# Parametros de datos
+data:
+  data_dir: "datos"
+  rul_max: 125           # Limite superior para Piecewise RUL (ciclos)
+  window_size: 30        # Tamano de ventana temporal (ciclos)
+  overlap: 0             # Overlap entre ventanas (0 = sin overlap)
+
+# Configuracion de sensores
+# NOTA: Los sensores a remover se determinaran mediante EDA para este subset
+# ya que combina variabilidad operativa con multiples modos de falla.
+# Por ahora se deja vacio para llenar despues del EDA.
+sensors:
+  remove: []             # Pendiente de EDA - complejidad maxima
+  normalize: true        # Aplicar MinMax scaling
+
+# Modelos a evaluar (mismos que FD001)
+models:
+  - name: "associative_memory"
+    search_space:
+      n_bins: [20, 100]
+      discretization: ["uniform", "quantile"]
+      decoding_method: ["centroid", "weighted_average"]
+
+  - name: "random_forest"
+    search_space:
+      n_estimators: [50, 300]
+      max_depth: [5, 30]
+      min_samples_split: [2, 20]
+      min_samples_leaf: [1, 10]
+
+  - name: "xgboost"
+    search_space:
+      n_estimators: [50, 300]
+      max_depth: [3, 15]
+      learning_rate: [0.01, 0.3]
+      subsample: [0.6, 1.0]
+
+  - name: "svr"
+    search_space:
+      C: [0.1, 100]
+      epsilon: [0.01, 1]
+      kernel: ["rbf", "linear"]
+
+  - name: "mlp"
+    search_space:
+      hidden_layers: [[64, 32], [128, 64, 32], [256, 128, 64]]
+      dropout: [0.1, 0.5]
+      learning_rate: [0.001, 0.01]
+
+  - name: "cnn1d"
+    search_space:
+      filters: [16, 64]
+      kernel_size: [3, 7]
+      hidden_size: [32, 128]
+
+  - name: "lstm"
+    search_space:
+      hidden_size: [32, 128]
+      num_layers: [1, 3]
+      dropout: [0.1, 0.5]
+
+# Configuracion de evaluacion
+evaluation:
+  metrics: ["rmse", "mae", "nasa_score"]
+  cv_folds: 5
+  cv_group_by: "unit_number"
+
+# Configuracion del experimento
+experiment:
+  random_seed: 42
+  n_jobs: -1
+  verbose: 1
+  mlflow_tracking_uri: "sqlite:///mlflow.db"
+  mlflow_experiment_name: "rul_cmapss_FD004"

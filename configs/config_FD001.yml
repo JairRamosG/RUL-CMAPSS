@@ -1,0 +1,99 @@
+# =============================================================================
+# Configuracion Experimental - FD001
+# =============================================================================
+# Escenario: 1 condicion operativa (Sea Level) / 1 modo de falla (HPC)
+# 
+# Descripcion:
+#   Este es el subconjunto mas simple y sirve como benchmark base para todo el
+#   proyecto. Solo tiene una condicion operativa (nivel del mar) y un unico modo
+#   de falla: degradacion del compresor de alta presion (HPC). Su objetivo es
+#   permitir la depuracion del codigo core, validar el wrapper de Scikit-learn
+#   de la Memoria Asociativa y establecer las lineas base de metricas para
+#   comparar con los demas subconjuntos mas complejos.
+#
+# Caracteristicas clave:
+#   - 100 motores de entrenamiento, 100 de prueba
+#   - Sin variabilidad operativa (condiciones constantes)
+#   - Sensores con varianza cero identificados y removidos
+#   - Ideal para prototipar y validar el pipeline completo
+# =============================================================================
+
+subset: "FD001"
+description: >
+  Benchmark base con condicion operativa unica (Sea Level) y un solo modo de
+  falla (degradacion del compresor de alta presion - HPC). Este escenario
+  controlado permite depurar el pipeline completo, validar el wrapper de
+  Scikit-learn para la Memoria Asociativa y establecer las metricas de referencia
+  que se usaran para comparar con los subconjuntos de mayor complejidad.
+
+# Parametros de datos
+data:
+  data_dir: "datos"
+  rul_max: 125           # Limite superior para Piecewise RUL (ciclos)
+  window_size: 30        # Tamano de ventana temporal (ciclos)
+  overlap: 0             # Overlap entre ventanas (0 = sin overlap)
+
+# Configuracion de sensores
+sensors:
+  remove: [1, 5, 6, 10, 16, 18, 19]  # Sensores constantes/baja varianza
+  normalize: true                      # Aplicar MinMax scaling
+
+# Modelos a evaluar
+models:
+  - name: "associative_memory"
+    search_space:
+      n_bins: [20, 100]                    # Numero de bins para cuantizacion
+      discretization: ["uniform", "quantile"]  # Estrategia de discretizacion
+      decoding_method: ["centroid", "weighted_average"]  # Metodo de decodificacion
+
+  - name: "random_forest"
+    search_space:
+      n_estimators: [50, 300]    # Numero de arboles
+      max_depth: [5, 30]         # Profundidad maxima
+      min_samples_split: [2, 20] # Minimo muestras para dividir nodo
+      min_samples_leaf: [1, 10]  # Minimo muestras en hoja
+
+  - name: "xgboost"
+    search_space:
+      n_estimators: [50, 300]    # Numero de boosting rounds
+      max_depth: [3, 15]         # Profundidad maxima del arbol
+      learning_rate: [0.01, 0.3] # Tasa de aprendizaje
+      subsample: [0.6, 1.0]      # Submuestreo de filas
+
+  - name: "svr"
+    search_space:
+      C: [0.1, 100]              # Parametro de regularizacion
+      epsilon: [0.01, 1]         # Margen de tolerancia
+      kernel: ["rbf", "linear"]  # Tipo de kernel
+
+  - name: "mlp"
+    search_space:
+      hidden_layers: [[64, 32], [128, 64, 32], [256, 128, 64]]  # Arquitecturas
+      dropout: [0.1, 0.5]        # Tasa de dropout
+      learning_rate: [0.001, 0.01]  # Tasa de aprendizaje
+
+  - name: "cnn1d"
+    search_space:
+      filters: [16, 64]          # Numero de filtros por capa
+      kernel_size: [3, 7]        # Tamano del kernel convolucional
+      hidden_size: [32, 128]     # Neuronas en capa densa final
+
+  - name: "lstm"
+    search_space:
+      hidden_size: [32, 128]     # Tamano del estado oculto
+      num_layers: [1, 3]         # Numero de capas LSTM
+      dropout: [0.1, 0.5]        # Dropout entre capas
+
+# Configuracion de evaluacion
+evaluation:
+  metrics: ["rmse", "mae", "nasa_score"]  # Metricas de evaluacion
+  cv_folds: 5                              # Pliegues de validacion cruzada
+  cv_group_by: "unit_number"               # Agrupar por motor (evitar leakage)
+
+# Configuracion del experimento
+experiment:
+  random_seed: 42                          # Semilla para reproducibilidad
+  n_jobs: -1                               # Usar todos los cores disponibles
+  verbose: 1                               # Nivel de verbosidad
+  mlflow_tracking_uri: "sqlite:///mlflow.db"  # URI de MLflow
+  mlflow_experiment_name: "rul_cmapss_FD001"  # Nombre del experimento MLflow
