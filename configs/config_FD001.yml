@@ -86,9 +86,18 @@ models:
 
 # Configuracion de evaluacion
 evaluation:
-  metrics: ["rmse", "mae", "nasa_score"]  # Metricas de evaluacion
-  cv_folds: 5                              # Pliegues de validacion cruzada
-  cv_group_by: "unit_number"               # Agrupar por motor (evitar leakage)
+  prediction_metrics: ["rmse", "mae", "nasa_score"]  # Metricas de precision
+  cv_folds: 5                                         # Pliegues de validacion cruzada
+  cv_group_by: "unit_number"                          # Agrupar por motor (evitar leakage)
+
+# Perfilado de recursos computacionales (centro del analisis de trade-offs)
+profiling:
+  enabled: true                                       # Activar perfilado de recursos
+  metrics:                                            # Metricas a registrar en cada ejecucion
+    - "train_time"                                    # Tiempo de entrenamiento (segundos)
+    - "inference_latency"                             # Latencia de inferencia (ms/motor)
+    - "ram_train"                                     # Memoria RAM pico entrenamiento (MB)
+    - "ram_inference"                                 # Memoria RAM pico inferencia (MB)
 
 # Configuracion del experimento
 experiment:

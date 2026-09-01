@@ -91,9 +91,18 @@ models:
 
 # Configuracion de evaluacion
 evaluation:
-  metrics: ["rmse", "mae", "nasa_score"]
+  prediction_metrics: ["rmse", "mae", "nasa_score"]
   cv_folds: 5
   cv_group_by: "unit_number"
+
+# Perfilado de recursos computacionales (centro del analisis de trade-offs)
+profiling:
+  enabled: true
+  metrics:
+    - "train_time"                    # Tiempo de entrenamiento (segundos)
+    - "inference_latency"             # Latencia de inferencia (ms/motor)
+    - "ram_train"                     # Memoria RAM pico entrenamiento (MB)
+    - "ram_inference"                 # Memoria RAM pico inferencia (MB)
 
 # Configuracion del experimento
 experiment:
