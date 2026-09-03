@@ -32,23 +32,19 @@ def create_groups(df: pd.DataFrame) -> np.ndarray:
     return df["unit_number"].values
 
 
-def remove_constant_sensors(
-    df: pd.DataFrame, sensors_to_remove: list[int]
-) -> pd.DataFrame:
-    """Remove constant-variance sensors from the DataFrame.
+def remove_constant_sensors(df: pd.DataFrame, sensors_to_remove: list[int]) -> pd.DataFrame:
+    """Remueve sensores con varianza constante del DataFrame.
 
-    Drops columns ``sensor_<id>`` for each id in ``sensors_to_remove``.
-    Columns that do not exist in df are silently ignored.
+    Elimina las columnas ``sensor_<id>`` por cada id en la lista ``sensors_to_remove``.
+    Las columnas que no existen en el DataFrame van a ser ignoradas.
 
     Args:
-        df: DataFrame with sensor columns named ``sensor_<id>``.
-        sensors_to_remove: List of sensor IDs (ints) to drop.
+        df: DataFrame con columnas de sensor llamadas ``sensor_<id>``.
+        sensors_to_remove: Lista de IDs de sensores (ints) para eliminar.
 
     Returns:
-        DataFrame without the specified sensor columns.
+        DataFrame sin las columnas especificadas.
     """
-    cols_to_drop = [
-        f"sensor_{sid}" for sid in sensors_to_remove
-        if f"sensor_{sid}" in df.columns
-    ]
+    cols_to_drop = [f"sensor_{sid}" for sid in sensors_to_remove if f"sensor_{sid}" in df.columns]
+    
     return df.drop(columns=cols_to_drop)
