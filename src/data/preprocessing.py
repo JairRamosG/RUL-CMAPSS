@@ -11,20 +11,20 @@ import pandas as pd
 
 
 def create_groups(df: pd.DataFrame) -> np.ndarray:
-    """Extract unit IDs for GroupKFold splitting.
+    """Extae unit para for GroupKFold splitting.
 
-    Returns an array of shape (n_samples,) where each element is the
-    unit_number of the corresponding row. This array is suitable for
-    passing to sklearn.model_selection.GroupKFold.split().
+    Retorna un arreglo de forma (n_samples,) donde cada elemento es el
+    unit_number de la fila correspondiente. Este arreglo es adecuado para
+    pasarlo a sklearn.model_selection.GroupKFold.split().
 
     Args:
-        df: DataFrame with a ``unit_number`` column.
+        df: DataFrame con una columna ``unit_number``.
 
     Returns:
-        numpy array of unit IDs aligned with df rows.
+        numpy array de la unidad IDs alineado con los df rows.
 
     Raises:
-        ValueError: If ``unit_number`` column is missing from df.
+        ValueError: si no se tiene un ``unit_number`` en el df.
     """
     if "unit_number" not in df.columns:
         raise ValueError("DataFrame must contain a 'unit_number' column")
