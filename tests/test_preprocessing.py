@@ -10,6 +10,7 @@ from src.data.preprocessing import (
     create_groups,
     remove_constant_sensors,
     compute_piecewise_rul,
+    preprocess_fold,
 )
 
 
@@ -266,3 +267,69 @@ class TestComputePiecewiseRul:
         result = compute_piecewise_rul(df, rul_max=100)
         assert result["rul"].max() <= 100
         assert result["rul"].iloc[-1] == 0
+
+
+class TestPreprocessFold:
+    """Tests for preprocess_fold function."""
+
+    def test_output_shapes(self):
+        """Test that output shapes match input shapes."""
+        X_train = np.array([[1, 2], [3, 4], [5, 6]])
+        X_val = np.array([[7, 8], [9, 10]])
+        X_train_s, X_val_s, scaler = preprocess_fold(X_train, X_val)
+
+        assert X_train_s.shape == X_train.shape
+        assert X_val_s.shape == X_val.shape
+
+    def test_train_scaled_to_0_1(self):
+        """Test that MinMaxScaler maps train to [0, 1]."""
+        X_train = np.array([[1, 10], [2, 20], [3, 30]])
+        X_val = np.array([[4, 40]])
+        X_train_s, _, _ = preprocess_fold(X_train, X_val)
+
+        assert X_train_s.min() >= 0.0
+        assert X_train_s.max() <= 1.0
+
+    def test_val_uses_train_statistics(self):
+        """Test that val scaling uses train min/max (can exceed [0, 1])."""
+        X_train = np.array([[10], [20], [30]])
+        X_val = np.array([[50]])  # above train max
+        _, X_val_s, _ = preprocess_fold(X_train, X_val)
+
+        # 50 > train_max(30), so scaled value > 1.0
+        assert X_val_s[0, 0] > 1.0
+
+    def test_no_leakage(self):
+        """Test that val scaler params come from train only."""
+        X_train = np.array([[1, 100], [2, 200]])
+        X_val = np.array([[3, 300]])
+        _, _, scaler = preprocess_fold(X_train, X_val)
+
+        # Scaler min/max must match train, not combined
+        assert np.allclose(scaler.data_min_, X_train.min(axis=0))
+        assert np.allclose(scaler.data_max_, X_train.max(axis=0))
+
+    def test_zscore_standardizes_train(self):
+        """Test that StandardScaler gives train mean ~0, std ~1."""
+        X_train = np.array([[1], [2], [3], [4], [5]])
+        X_val = np.array([[6]])
+        X_train_s, _, _ = preprocess_fold(X_train, X_val, scaler_type="zscore")
+
+        assert abs(X_train_s.mean()) < 1e-10
+        assert abs(X_train_s.std() - 1.0) < 1e-10
+
+    def test_returns_scaler_object(self):
+        """Test that returned scaler is a valid sklearn scaler."""
+        X_train = np.array([[1, 2], [3, 4]])
+        X_val = np.array([[5, 6]])
+        _, _, scaler = preprocess_fold(X_train, X_val)
+
+        assert hasattr(scaler, "transform")
+        assert hasattr(scaler, "fit")
+
+    def test_invalid_scaler_raises(self):
+        """Test that invalid scaler_type raises ValueError."""
+        X_train = np.array([[1, 2]])
+        X_val = np.array([[3, 4]])
+        with pytest.raises(ValueError):
+            preprocess_fold(X_train, X_val, scaler_type="invalid")
