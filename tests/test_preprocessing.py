@@ -6,7 +6,11 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from src.data.preprocessing import create_groups, remove_constant_sensors
+from src.data.preprocessing import (
+    create_groups,
+    remove_constant_sensors,
+    compute_piecewise_rul,
+)
 
 
 class TestCreateGroups:
@@ -162,3 +166,103 @@ class TestRemoveConstantSensors:
         })
         result = remove_constant_sensors(df, [])
         assert list(result.columns) == list(df.columns)
+
+
+class TestComputePiecewiseRul:
+    """Tests for compute_piecewise_rul function."""
+
+    def test_adds_rul_column(self):
+        """Test that rul column is added to the DataFrame."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1],
+            "time": [1, 2, 3],
+        })
+        result = compute_piecewise_rul(df)
+        assert "rul" in result.columns
+
+    def test_rul_does_not_exceed_rul_max(self):
+        """Test that RUL values never exceed rul_max."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1, 1, 1],
+            "time": [1, 2, 3, 4, 5],
+        })
+        result = compute_piecewise_rul(df, rul_max=125)
+        assert result["rul"].max() <= 125
+
+    def test_rul_ends_at_zero(self):
+        """Test that RUL equals 0 at the last cycle (failure)."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1],
+            "time": [10, 20, 30],
+        })
+        result = compute_piecewise_rul(df)
+        assert result["rul"].iloc[-1] == 0
+
+    def test_rul_decreases_monotonically(self):
+        """Test that RUL is monotonically non-increasing."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1, 1, 1],
+            "time": [1, 2, 3, 4, 5],
+        })
+        result = compute_piecewise_rul(df)
+        assert (result["rul"].diff().dropna() <= 0).all()
+
+    def test_rul_values_correct(self):
+        """Test exact RUL values for known input."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1, 1, 1],
+            "time": [1, 2, 3, 4, 5],
+        })
+        result = compute_piecewise_rul(df, rul_max=125)
+        # failure at cycle 5: raw RUL = [4, 3, 2, 1, 0]
+        expected = [4, 3, 2, 1, 0]
+        assert list(result["rul"]) == expected
+
+    def test_rul_truncation(self):
+        """Test that RUL is truncated when exceeding rul_max."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1, 1],
+            "time": [1, 2, 3, 4],
+        })
+        result = compute_piecewise_rul(df, rul_max=2)
+        # failure at 4: raw RUL = [3, 2, 1, 0], truncated to [2, 2, 1, 0]
+        assert list(result["rul"]) == [2, 2, 1, 0]
+
+    def test_multiple_units(self):
+        """Test with two units having different lifespans."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1, 2, 2],
+            "time": [1, 2, 3, 1, 2],
+        })
+        result = compute_piecewise_rul(df)
+        # Unit 1 fails at 3: RUL = [2, 1, 0]
+        # Unit 2 fails at 2: RUL = [1, 0]
+        assert list(result["rul"]) == [2, 1, 0, 1, 0]
+
+    def test_preserves_original_columns(self):
+        """Test that original columns are not modified."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1],
+            "time": [1, 2],
+            "sensor_2": [10.0, 20.0],
+        })
+        result = compute_piecewise_rul(df)
+        assert "unit_number" in result.columns
+        assert "time" in result.columns
+        assert "sensor_2" in result.columns
+
+    def test_missing_column_raises(self):
+        """Test that missing required columns raise ValueError."""
+        df = pd.DataFrame({"sensor_1": [1, 2]})
+        with pytest.raises(ValueError):
+            compute_piecewise_rul(df)
+
+    def test_custom_rul_max(self):
+        """Test with different rul_max values."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1],
+            "time": [1, 2, 3],
+        })
+        result = compute_piecewise_rul(df, rul_max=100)
+        assert result["rul"].max() <= 100
+        assert result["rul"].iloc[-1] == 0
