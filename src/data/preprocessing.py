@@ -34,7 +34,6 @@ def create_groups(df: pd.DataFrame) -> np.ndarray:
 
 def remove_constant_sensors(df: pd.DataFrame, sensors_to_remove: list[int]) -> pd.DataFrame:
     """Remueve sensores con varianza constante del DataFrame.
-
     Elimina las columnas ``sensor_<id>`` por cada id en la lista ``sensors_to_remove``.
     Las columnas que no existen en el DataFrame van a ser ignoradas.
 
@@ -52,7 +51,6 @@ def remove_constant_sensors(df: pd.DataFrame, sensors_to_remove: list[int]) -> p
 def compute_piecewise_rul(df: pd.DataFrame, rul_max: int = 125) -> pd.DataFrame:
     """
     Calcula el RUL de manera piecewise linear para cada unidad de sensores en el DataFrame.
-
     Para cada unidad, el RUL empieza en un rul_max y va decreciendo linealmente a 0
     hasta llegar a la falla del ciclo de operación.
 
@@ -87,18 +85,52 @@ def compute_piecewise_rul(df: pd.DataFrame, rul_max: int = 125) -> pd.DataFrame:
 
     return result   
 
+def preprocess_fold(X_train: np.ndarray, X_val: np.ndarray, scaler_type: str = 'minmax') -> tuple[np.ndarray, np.ndarray, object]:
+    """
+    Aplicación de función de escalamiento únicamente en los datos de entrenaiento, y transformar tambien el test.
+    Previene de la fuga de datos asegurandose que las estadísticas de validación nunca se usan en el entrenamiento.
+
+    Args:
+        X_train: Datos de entrenamiento, shape (n_train, n_features)
+        X_val: Datos de validación, shape (n_val, n_features)
+        scaler_type: "minmax" para MinMaxScaler, "zscore" para StandardScaler (default: "minmax")
+    
+    Returns:
+        tupla (X_train_scaled, X_val_scaled, scaler) donde:
+            - X_train_scaled: Datos de entrenamiento escalados
+            - X_val_scaled: Datos de validación escalados
+            - scaler: objeto del escalador usado para transformar los datos
+    Raises:
+        ValueError: si el tipo de escalador no es reconocido.
+    """
+    from sklearn.preprocessing import MinMaxScaler, StandardScaler
+
+    if scaler_type == 'minmax':
+        scaler = MinMaxScaler()
+    elif scaler_type == 'zscore':
+        scaler = StandardScaler()
+    else:
+        raise ValueError(f"scaler_type debe ser 'minmax' o 'zscore', no '{scaler_type}'")
+
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_val_scaled = scaler.transform(X_val)
+    return X_train_scaled, X_val_scaled, scaler
+
+
 
 if __name__ == "__main__":
 
     import pandas as pd
 
-    df = pd.DataFrame({
-        'unit_number': [1, 1, 1, 1, 1],
-        'time': [1, 2, 3, 4, 5],
+    X_train = pd.DataFrame({
+        'feature': [np.random.randint(0, 100) for _ in range(100)]
     })
-    result = compute_piecewise_rul(df)
-    print(result)
-    print()
-    print('RUL:', list(result['rul']))
-    print('Expected: [4, 3, 2, 1, 0]')
 
+    X_val = pd.DataFrame({
+        'feature': [np.random.randint(0, 100) for _ in range(100)]
+    })
+    result = preprocess_fold(X_train.values, X_val.values, scaler_type='minmax')
+
+    print(f"X_train_scaled: {result[0][:5]}")
+    print(f"X_val_scaled: {result[1][:5]}") 
+    print(f"Scaler: {result[2]}")
