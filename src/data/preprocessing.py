@@ -46,5 +46,5 @@ def remove_constant_sensors(df: pd.DataFrame, sensors_to_remove: list[int]) -> p
         DataFrame sin las columnas especificadas.
     """
     cols_to_drop = [f"sensor_{sid}" for sid in sensors_to_remove if f"sensor_{sid}" in df.columns]
-    
+
     return df.drop(columns=cols_to_drop)
