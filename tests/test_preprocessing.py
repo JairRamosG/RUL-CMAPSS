@@ -11,6 +11,7 @@ from src.data.preprocessing import (
     remove_constant_sensors,
     compute_piecewise_rul,
     preprocess_fold,
+    full_preprocessing,
 )
 
 
@@ -333,3 +334,74 @@ class TestPreprocessFold:
         X_val = np.array([[3, 4]])
         with pytest.raises(ValueError):
             preprocess_fold(X_train, X_val, scaler_type="invalid")
+
+
+class TestFullPreprocessing:
+    """Tests for full_preprocessing function."""
+
+    def test_returns_dict(self):
+        """Test that output is a dictionary."""
+        result = full_preprocessing()
+        assert isinstance(result, dict)
+
+    def test_contains_required_keys(self):
+        """Test that dict contains all required keys."""
+        result = full_preprocessing()
+        assert "train" in result
+        assert "test" in result
+        assert "rul" in result
+        assert "config" in result
+
+    def test_train_is_dataframe(self):
+        """Test that train is a pandas DataFrame."""
+        result = full_preprocessing()
+        assert isinstance(result["train"], pd.DataFrame)
+
+    def test_constant_sensors_removed(self):
+        """Test that sensors [1,5,6,10,16,18,19] are not in train."""
+        result = full_preprocessing()
+        for sid in [1, 5, 6, 10, 16, 18, 19]:
+            assert f"sensor_{sid}" not in result["train"].columns
+
+    def test_retained_sensors_present(self):
+        """Test that kept sensors exist in train."""
+        result = full_preprocessing()
+        expected = [2, 3, 4, 7, 8, 9, 11, 12, 13, 14, 15, 17, 20, 21]
+        for sid in expected:
+            assert f"sensor_{sid}" in result["train"].columns
+
+    def test_rul_column_in_train(self):
+        """Test that rul column exists in train DataFrame."""
+        result = full_preprocessing()
+        assert "rul" in result["train"].columns
+
+    def test_no_nans_in_train(self):
+        """Test that train has no NaN values."""
+        result = full_preprocessing()
+        assert result["train"].isnull().sum().sum() == 0
+
+    def test_no_nans_in_test(self):
+        """Test that test has no NaN values."""
+        result = full_preprocessing()
+        assert result["test"].isnull().sum().sum() == 0
+
+    def test_rul_max_truncation(self):
+        """Test that RUL values do not exceed rul_max from config."""
+        result = full_preprocessing()
+        rul_max = result["config"]["data"]["rul_max"]
+        assert result["train"]["rul"].max() <= rul_max
+
+    def test_train_100_units(self):
+        """Test that train has 100 unique units (FD001)."""
+        result = full_preprocessing()
+        assert result["train"]["unit_number"].nunique() == 100
+
+    def test_config_subset_matches(self):
+        """Test that config subset matches requested subset."""
+        result = full_preprocessing("FD001")
+        assert result["config"]["subset"] == "FD001"
+
+    def test_invalid_config_raises(self):
+        """Test that missing config file raises FileNotFoundError."""
+        with pytest.raises(FileNotFoundError):
+            full_preprocessing(config_path="nonexistent.yml")
