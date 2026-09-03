@@ -30,3 +30,25 @@ def create_groups(df: pd.DataFrame) -> np.ndarray:
         raise ValueError("DataFrame must contain a 'unit_number' column")
 
     return df["unit_number"].values
+
+
+def remove_constant_sensors(
+    df: pd.DataFrame, sensors_to_remove: list[int]
+) -> pd.DataFrame:
+    """Remove constant-variance sensors from the DataFrame.
+
+    Drops columns ``sensor_<id>`` for each id in ``sensors_to_remove``.
+    Columns that do not exist in df are silently ignored.
+
+    Args:
+        df: DataFrame with sensor columns named ``sensor_<id>``.
+        sensors_to_remove: List of sensor IDs (ints) to drop.
+
+    Returns:
+        DataFrame without the specified sensor columns.
+    """
+    cols_to_drop = [
+        f"sensor_{sid}" for sid in sensors_to_remove
+        if f"sensor_{sid}" in df.columns
+    ]
+    return df.drop(columns=cols_to_drop)

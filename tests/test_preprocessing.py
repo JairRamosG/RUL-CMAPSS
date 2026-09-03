@@ -6,7 +6,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from src.data.preprocessing import create_groups
+from src.data.preprocessing import create_groups, remove_constant_sensors
 
 
 class TestCreateGroups:
@@ -82,3 +82,83 @@ class TestCreateGroups:
         for unit in units:
             mask = df["unit_number"] == unit
             assert len(np.unique(result[mask])) == 1
+
+
+class TestRemoveConstantSensors:
+    """Tests for remove_constant_sensors function."""
+
+    def test_removes_correct_columns(self):
+        """Test that specified sensor columns are removed."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1],
+            "sensor_1": [0.0, 0.0],
+            "sensor_2": [1.0, 2.0],
+            "sensor_3": [3.0, 4.0],
+        })
+        result = remove_constant_sensors(df, [1])
+
+        assert "sensor_1" not in result.columns
+        assert "sensor_2" in result.columns
+        assert "sensor_3" in result.columns
+
+    def test_removes_multiple_columns(self):
+        """Test removing several sensors at once."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1],
+            "sensor_1": [0.0, 0.0],
+            "sensor_5": [0.0, 0.0],
+            "sensor_10": [0.0, 0.0],
+            "sensor_11": [1.0, 2.0],
+        })
+        result = remove_constant_sensors(df, [1, 5, 10])
+
+        assert "sensor_1" not in result.columns
+        assert "sensor_5" not in result.columns
+        assert "sensor_10" not in result.columns
+        assert "sensor_11" in result.columns
+
+    def test_preserves_non_sensor_columns(self):
+        """Test that unit_number and time columns are preserved."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1],
+            "time": [1, 2],
+            "setting_1": [0.5, 0.5],
+            "sensor_1": [0.0, 0.0],
+            "sensor_2": [1.0, 2.0],
+        })
+        result = remove_constant_sensors(df, [1])
+
+        assert "unit_number" in result.columns
+        assert "time" in result.columns
+        assert "setting_1" in result.columns
+
+    def test_ignores_nonexistent_sensors(self):
+        """Test that nonexistent sensor IDs are silently ignored."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1],
+            "sensor_2": [1.0, 2.0],
+        })
+        result = remove_constant_sensors(df, [1, 5, 99])
+
+        assert "sensor_2" in result.columns
+        assert result.shape == df.shape
+
+    def test_preserves_row_count(self):
+        """Test that row count is unchanged after removal."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1],
+            "sensor_1": [0.0, 0.0, 0.0],
+            "sensor_2": [1.0, 2.0, 3.0],
+        })
+        result = remove_constant_sensors(df, [1])
+        assert len(result) == len(df)
+
+    def test_empty_removal_list(self):
+        """Test with empty removal list returns all columns."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1],
+            "sensor_1": [0.0, 0.0],
+            "sensor_2": [1.0, 2.0],
+        })
+        result = remove_constant_sensors(df, [])
+        assert list(result.columns) == list(df.columns)
