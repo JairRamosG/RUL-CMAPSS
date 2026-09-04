@@ -57,7 +57,7 @@ def compute_rolling_stats(df: pd.DataFrame, window_size: int = 30, stat_types: l
         for stat in stat_types:
             col_name = f"{col}_{stat}"
             # Extraer y alinear limpiamente
-            new_cols[col_name] = getattr(rolled, stat)().reset_index(level=0, drop=True)
+            new_cols[col_name] = getattr(rolled, stat)().reset_index(level=0, drop=True).fillna(0.0)
 
     new_features_df = pd.DataFrame(new_cols, index=result.index)
     return pd.concat([result, new_features_df], axis=1)
@@ -212,20 +212,150 @@ def create_windows(df: pd.DataFrame, window_size: int = 30, pad_strategy: str = 
     return X, y
 
 
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.feature_selection import mutual_info_regression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.feature_selection import RFE
+
+class FeatureSelector(BaseEstimator, TransformerMixin):
+    """Feature selector compatible with Scikit-learn pipelines.
+
+    Soporta 3 diferentes selectores de caracteristicas para experimentar:
+
+    - 'mutual_info': seleccióna características con mayor mutual_information con el target. Necesita 'y' en el 'fit()'.
+    - 'rf_importance':selección de características con Random Forest feature importance. Necesita 'y' en el 'fit()'.
+    - 'rfe': Recursive Feature Elimination usando Random Forest. Necesita 'y' en el 'fit()'.
+    - 'none': sin selección, mantiene todas las características.
+
+    Cuidado en el Data Leakage: 'fit()' solo se llama con el 'X_train'
+    y 'y_train'. LUego 'ransform()' se puede aplicar al train, val o test sets.
+
+    Args:
+        method: Están disponibles 'mutual_info', 'rf_importance', 'rfe', o 'none', Default 'mutual_info'.
+        n_features: Numbero de caracterśiticas a usar, si se usa 'None, ocupa todas.
+        random_state: Default 42.
+
+    Attributes:
+        selected_features_: np.ndarray of selected column indices after fit(). Empty if method='none'.
+    """
+
+    def __init__(self, method: str = 'mutual_info', n_features: int | None = None, random_state: int = 42):
+        self.method = method
+        self.n_features = n_features
+        self.random_state = random_state
+
+    def fit(self, X, y=None):
+        supported = {'mutual_info', 'rf_importance', 'rfe', 'none'}
+        if self.method not in supported:
+            raise ValueError(f'Método de selección de características {self.method} no soportado')
+
+        if self.method == 'none':
+            self.selected_features_ = np.array([], dtype=int)
+            return self
+
+        if y is None:
+            raise ValueError(f'Se requiere "y" para el método {self.method}')
+
+        X_arr = np.asarray(X)
+        
+        if X_arr.ndim != 2:
+            raise ValueError(f"fit() requiere una matriz 2D de entrada (N, F). Se recibió dimensión {X_arr.ndim}")
+
+        n_total = X_arr.shape[1]
+
+        if self.n_features is None or self.n_features >= n_total:
+            self.selected_features_ = np.arange(n_total, dtype=int)
+            return self
+
+        if self.method == 'mutual_info':
+            scores = mutual_info_regression(X_arr, y, random_state=self.random_state)
+            top_idx = np.argsort(scores)[::-1][:self.n_features]
+            self.selected_features_ = np.sort(top_idx)
+
+        elif self.method == 'rf_importance':
+            rf = RandomForestRegressor(n_estimators=100, random_state=self.random_state, n_jobs=-1)
+            rf.fit(X_arr, y)
+            top_idx = np.argsort(rf.feature_importances_)[::-1][:self.n_features]
+            self.selected_features_ = np.sort(top_idx)
+
+        elif self.method == 'rfe':
+            rf = RandomForestRegressor(n_estimators=100, random_state=self.random_state, n_jobs=-1)
+            rfe = RFE(rf, n_features_to_select=self.n_features, step=1)
+            rfe.fit(X_arr, y)
+            self.selected_features_ = np.where(rfe.support_)[0]
+
+        return self
+
+    def transform(self, X):
+        if not hasattr(self, 'selected_features_'):
+            raise ValueError("Debe ejecutarse fit() antes que transform()")
+
+        if self.method == 'none' or len(self.selected_features_) == 0:
+            return np.asarray(X)
+
+        X_arr = np.asarray(X)
+
+        # Soporte para tensores 2D (N, F) o 3D (N, W, F)
+        if X_arr.ndim == 2:
+            return X_arr[:, self.selected_features_]
+        elif X_arr.ndim == 3:
+            return X_arr[:, :, self.selected_features_]
+        else:
+            raise ValueError(f"Se esperaba una entrada 2D o 3D, se obtuvo dimensión {X_arr.ndim}")
+
+
 if __name__ == '__main__':
+
     from src.data.preprocessing import full_preprocessing
 
+    # 1. Cargar datos preprocesados
     result = full_preprocessing("FD001", "configs/config_FD001.yaml")
-    X = result['train']
+    df_train = result['train']
 
-    # 1. Aplicar FE controlado
-    X_fe = compute_rolling_stats(X, window_size=30)
-    X_fe = compute_trends(X_fe, delta_steps=[1, 2, 3], base_features_only=True)
+    # 2. Generar nuevas características (Feature Engineering en 2D)
+    df_fe = compute_rolling_stats(df_train, window_size=30)
+    df_fe = compute_trends(df_fe, delta_steps=[1, 2, 3], base_features_only=True)
+    print(f"Columnas totales tras FE: {df_fe.shape[1]}")
 
-    print(f"Columnas totales tras FE: {X_fe.shape[1]}")
+    # 3. Separar las columnas de características de los metadatos y del target
+    exclude_cols = {'unit_number', 'time', 'rul'}
+    feature_cols = [c for c in df_fe.columns if c not in exclude_cols]
 
-    # 2. Generar ventanas 3D
-    X_win, y = create_windows(X_fe, window_size=30, pad_strategy='edge')
+    # Extraer matrices NumPy 2D para la selección
+    X_2d = df_fe[feature_cols].values
+    
+    # Calcular o tomar la etiqueta RUL objetivo para fit()
+    if 'rul' in df_fe.columns:
+        y_2d = df_fe['rul'].values
+    else:
+        # Si no viene 'rul', se calcula temporalmente para entrenar el selector
+        max_cycles = df_fe.groupby('unit_number')['time'].transform('max')
+        y_2d = (max_cycles - df_fe['time']).clip(upper=125).values
 
-    print(f"X_win shape (N, W, F): {X_win.shape}")
-    print(f"y shape: {y.shape}")
+    # 4. Entrenar y aplicar el selector de características en 2D
+    f_selector = FeatureSelector(method='mutual_info', n_features=50, random_state=42)
+    
+    # fit() aprende cuáles de las N características conservar leyendo matriz 2D
+    f_selector.fit(X_2d, y_2d)
+    
+    # transform() reduce las columnas de la matriz
+    X_2d_selected = f_selector.transform(X_2d)
+
+    # 5. Reconstruir el DataFrame preservando 'unit_number' y 'time'
+    # Obtenemos los nombres de las columnas que sobrevivieron al selector
+    selected_feature_names = [feature_cols[i] for i in f_selector.selected_features_]
+    
+    # Unimos metadatos + características seleccionadas
+    df_selected = pd.concat([
+        df_fe[['unit_number', 'time']].reset_index(drop=True),
+        pd.DataFrame(X_2d_selected, columns=selected_feature_names)
+    ], axis=1)
+
+    if 'rul' in df_fe.columns:
+        df_selected['rul'] = df_fe['rul'].values
+
+    # 6. Generar tensores 3D únicamente con las características seleccionadas
+    X_win, y_win = create_windows(df_selected, window_size=30, pad_strategy='edge')
+
+    print(f"Forma final del tensor 3D X_win (N, W, F): {X_win.shape}")
+    print(f"Forma final del vector de etiquetas y_win: {y_win.shape}")
