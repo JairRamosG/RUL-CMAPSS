@@ -6,7 +6,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from src.features.engineering import create_windows, compute_rolling_stats
+from src.features.engineering import create_windows, compute_rolling_stats, compute_trends
 
 
 def _make_df(units: dict[int, int], n_features: int = 3) -> pd.DataFrame:
@@ -331,3 +331,153 @@ class TestComputeRollingStats:
         df = pd.DataFrame({"unit_number": [1, 1], "time": [1, 2], "rul": [1, 0]})
         with pytest.raises(ValueError, match="columnas"):
             compute_rolling_stats(df)
+
+
+class TestComputeTrends:
+    """Tests for compute_trends function."""
+
+    # ── Output structure ────────────────────────────────────────────
+
+    def test_default_adds_one_delta_column_per_feature(self):
+        """Default delta_steps=[1] adds one _delta1 column per feature."""
+        df = _make_df({1: 10}, n_features=2)
+        result = compute_trends(df)
+
+        assert "sensor_1_delta1" in result.columns
+        assert "sensor_2_delta1" in result.columns
+        assert result.shape[1] == df.shape[1] + 2
+
+    def test_multiple_delta_steps(self):
+        """delta_steps=[1,2,3] adds 3 columns per feature."""
+        df = _make_df({1: 10}, n_features=2)
+        result = compute_trends(df, delta_steps=[1, 2, 3])
+
+        for s in [1, 2, 3]:
+            assert f"sensor_1_delta{s}" in result.columns
+            assert f"sensor_2_delta{s}" in result.columns
+        # 2 sensors * 3 deltas = 6 new columns
+        assert result.shape[1] == df.shape[1] + 6
+
+    # ── Values correctness ─────────────────────────────────────────
+
+    def test_delta1_values(self):
+        """delta1 = current - previous cycle; first cycle is 0."""
+        df = _make_df({1: 5}, n_features=1)
+        result = compute_trends(df, delta_steps=[1])
+
+        # sensor_1: 101, 102, 103, 104, 105
+        # delta1: 0, 1, 1, 1, 1  (fillna(0.0) for first cycle)
+        assert result["sensor_1_delta1"].iloc[0] == pytest.approx(0.0)
+        assert result["sensor_1_delta1"].iloc[1] == pytest.approx(1.0)
+        assert result["sensor_1_delta1"].iloc[4] == pytest.approx(1.0)
+
+    def test_delta3_values(self):
+        """delta3 = current - cycle 3 steps back; first 3 cycles are 0."""
+        df = _make_df({1: 6}, n_features=1)
+        result = compute_trends(df, delta_steps=[3])
+
+        # sensor_1: 101, 102, 103, 104, 105, 106
+        # delta3: 0, 0, 0, 3, 3, 3  (fillna(0.0) for first 3 cycles)
+        assert result["sensor_1_delta3"].iloc[0] == pytest.approx(0.0)
+        assert result["sensor_1_delta3"].iloc[2] == pytest.approx(0.0)
+        assert result["sensor_1_delta3"].iloc[3] == pytest.approx(3.0)
+        assert result["sensor_1_delta3"].iloc[5] == pytest.approx(3.0)
+
+    def test_decreasing_sensor_produces_negative_delta(self):
+        """Negative delta when sensor value decreases."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 1],
+            "time": [1, 2, 3],
+            "rul": [2, 1, 0],
+            "sensor_1": [100, 90, 80],
+        })
+        result = compute_trends(df, delta_steps=[1])
+
+        assert result["sensor_1_delta1"].iloc[1] == pytest.approx(-10.0)
+        assert result["sensor_1_delta1"].iloc[2] == pytest.approx(-10.0)
+
+    # ── base_features_only ─────────────────────────────────────────
+
+    def test_base_features_only_skips_stat_columns(self):
+        """With base_features_only=True, deltas ignore _mean, _std, etc."""
+        df = _make_df({1: 10}, n_features=1)
+        df = compute_rolling_stats(df, window_size=5)
+        result = compute_trends(df, delta_steps=[1], base_features_only=True)
+
+        # Should have delta for sensor_1 but NOT for sensor_1_mean etc.
+        assert "sensor_1_delta1" in result.columns
+        assert "sensor_1_mean_delta1" not in result.columns
+        assert "sensor_1_std_delta1" not in result.columns
+
+    def test_base_features_only_false_computes_all(self):
+        """With base_features_only=False, deltas are computed on everything."""
+        df = _make_df({1: 10}, n_features=1)
+        df = compute_rolling_stats(df, window_size=5)
+        result = compute_trends(df, delta_steps=[1], base_features_only=False)
+
+        # Should have delta for sensor_1 AND sensor_1_mean etc.
+        assert "sensor_1_delta1" in result.columns
+        assert "sensor_1_mean_delta1" in result.columns
+
+    # ── Per-unit isolation ──────────────────────────────────────────
+
+    def test_no_cross_unit_contamination(self):
+        """Deltas are computed independently per motor."""
+        df = _make_df({1: 5, 2: 5}, n_features=1)
+        result = compute_trends(df, delta_steps=[1])
+
+        # Motor 1: deltas are all 1.0 (101→102→103→104→105)
+        m1 = result[result["unit_number"] == 1]
+        assert m1["sensor_1_delta1"].iloc[1] == pytest.approx(1.0)
+
+        # Motor 2: deltas are also 1.0 (201→202→203→204→205)
+        m2 = result[result["unit_number"] == 2]
+        assert m2["sensor_1_delta1"].iloc[1] == pytest.approx(1.0)
+
+    def test_different_motors_different_absolute_values(self):
+        """Delta values are independent, not mixed across motors."""
+        df = pd.DataFrame({
+            "unit_number": [1, 1, 2, 2],
+            "time": [1, 2, 1, 2],
+            "rul": [1, 0, 1, 0],
+            "sensor_1": [100, 120, 500, 550],
+        })
+        result = compute_trends(df, delta_steps=[1])
+
+        m1 = result[result["unit_number"] == 1]
+        m2 = result[result["unit_number"] == 2]
+
+        assert m1["sensor_1_delta1"].iloc[1] == pytest.approx(20.0)
+        assert m2["sensor_1_delta1"].iloc[1] == pytest.approx(50.0)
+
+    # ── Does not mutate input ──────────────────────────────────────
+
+    def test_input_not_mutated(self):
+        """Original DataFrame is not modified."""
+        df = _make_df({1: 10}, n_features=2)
+        original_cols = list(df.columns)
+        original_shape = df.shape
+        _ = compute_trends(df)
+
+        assert list(df.columns) == original_cols
+        assert df.shape == original_shape
+
+    # ── Input validation ───────────────────────────────────────────
+
+    def test_missing_unit_number_raises(self):
+        """ValueError when unit_number is missing."""
+        df = pd.DataFrame({"time": [1, 2], "sensor_1": [10, 20]})
+        with pytest.raises(ValueError, match="columnas"):
+            compute_trends(df)
+
+    def test_negative_delta_step_raises(self):
+        """ValueError when delta_steps contains non-positive values."""
+        df = _make_df({1: 10})
+        with pytest.raises(ValueError, match="positivos"):
+            compute_trends(df, delta_steps=[0, -1])
+
+    def test_no_feature_columns_raises(self):
+        """ValueError when only identifiers are present."""
+        df = pd.DataFrame({"unit_number": [1, 1], "time": [1, 2], "rul": [1, 0]})
+        with pytest.raises(ValueError, match="No hay valores de sensores en el DataFrame"):
+            compute_trends(df)
