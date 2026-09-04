@@ -46,10 +46,7 @@ def create_windows(df: pd.DataFrame, window_size: int = 30, pad_strategy: str = 
     # Asegurar el orden correcto
     df = df.sort_values(['unit_number', 'time']).reset_index(drop=True)
 
-    # Ensure correct ordering
-    df = df.sort_values(["unit_number", "time"]).reset_index(drop=True)
-
-    # Compute RUL if not present
+    # Calcular el RUL si no lo trae
     if "rul" in df.columns:
         rul_series = df["rul"]
     else:
@@ -69,13 +66,13 @@ def create_windows(df: pd.DataFrame, window_size: int = 30, pad_strategy: str = 
             continue
 
         if T >= window_size:
-            # Enough history — slide over valid starts
+            # Enough history — tomar estadísticas validas
             for start in range(T - window_size + 1):
                 end = start + window_size
                 windows.append(values[start:end])
                 targets.append(float(rul_vals[end - 1]))
         else:
-            # Edge padding: repeat first row to fill gap
+            # Edge padding: repetir el primer valor
             pad_len = window_size - T
             pad_block = np.tile(values[0:1], (pad_len, 1))
             padded = np.concatenate([pad_block, values], axis=0)
@@ -87,6 +84,55 @@ def create_windows(df: pd.DataFrame, window_size: int = 30, pad_strategy: str = 
     y = np.array(targets)
 
     return X, y
+
+def compute_rolling_stats(df: pd.DataFrame, window_size : int = 30, stat_types : list[str] | None = None) -> pd.DataFrame:
+    """
+    Computo de las características que vienen en el libro, las de tipo Time Delay (lags, rolling_windows, seasonal_rolling_windows y EWMA)
+    Para cada sensor calcula las estadísticas de ciclos del pasado y los agrega a nuevas columnas para el DataFrame.
+    Las estadísticas están calculadas por 'unit_number', la primera es 'window_size-1', van a haber NaN si no alcanzan valores
+
+    Args:
+        df: DataFrame limpio desde create_window
+        window_size: numero de ciclos pasados a considerar (30 de literatura)
+        stat_types: lista de funciónes de agregación ['mean', 'std', 'min', 'max']
+
+    Returns:
+        pd.DateFrame: Nuevo DataFrame con todas las nuevas características temporales calculadas
+    
+    Raises:
+        ValueError: Si hay campos faltantes para procesar el DataFrame
+    """
+
+    if stat_types is None:
+        stat_types = ['mean', 'std', 'min', 'max']
+
+    if not stat_types:
+        raise ValueError('No existen etadísticos para las variables Time Delay Embedding')
+
+    required = {'unit_number', 'time'}
+    if not required.issubset(df.columns):
+        missing = required - set(df.columns)
+        raise ValueError(f'El DataFrame debe contener: {missing}')
+
+    exclude = {'unit_number', 'time', 'rul'}
+    feature_cols = [col for col in df.columns if col not in exclude]
+    if not feature_cols:
+        raise ValueError(f'No hay columnas para calcular en el DataFrame')
+
+    result = df.copy()
+    result = result.sort_values(['unit_number', 'time']).reset_index(drop=True)
+
+    grouped = result.groupby('unit_number', sort = False)
+
+    for col in feature_cols:
+        for stat in stat_types:
+            col_name = f"{col}_{stat}"
+            result[col_name] = grouped[col].transform(lambda x: getattr(x.rolling(window_size, min_periods=1), stat)())
+
+    return result
+
+
+
 
 if __name__ == '__main__':
 
@@ -102,10 +148,17 @@ if __name__ == '__main__':
     print("RUL max:", result["train"]["rul"].max())
     print("RUL min:", result["train"]["rul"].min())
     print()
-    train = result['train']
-    X, y = create_windows(train, window_size = 30, pad_strategy = 'edge')
-    print(f"\nX shape: {X.shape}")   # (n_windows, 30, n_features)
+
+    #compute_rolling_stats---------------------------------------------------------------
+    X = result['train']
+    X_fe = compute_rolling_stats(X)
+    print(f'X_fe shape: {X_fe.shape}')
+
+    #create_windows---------------------------------------------------------------
+    X_win, y = create_windows(X_fe, window_size = 30, pad_strategy = 'edge')
+    print(f"\nX shape: {X_win.shape}")   # (n_windows, 30, n_features)
     print(f"y shape: {y.shape}")     # (n_windows,)
     print(f"y primeros 5: {y[:5]}")
     print(f"y min: {y.min()}, y max: {y.max()}")
+
 

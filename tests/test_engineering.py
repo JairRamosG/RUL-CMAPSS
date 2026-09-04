@@ -6,7 +6,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from src.features.engineering import create_windows
+from src.features.engineering import create_windows, compute_rolling_stats
 
 
 def _make_df(units: dict[int, int], n_features: int = 3) -> pd.DataFrame:
@@ -192,3 +192,142 @@ class TestCreateWindows:
         original_cols = list(df.columns)
         _ = create_windows(df, window_size=5)
         assert list(df.columns) == original_cols
+
+
+class TestComputeRollingStats:
+    """Tests for compute_rolling_stats function."""
+
+    # ── Output structure ────────────────────────────────────────────
+
+    def test_adds_stat_columns(self):
+        """Each feature gets 4 new columns (mean, std, min, max)."""
+        df = _make_df({1: 50}, n_features=2)
+        result = compute_rolling_stats(df, window_size=10)
+
+        # Original 5 columns + 2 sensors * 4 stats = 8 new
+        assert result.shape[1] == df.shape[1] + 8
+
+    def test_column_naming(self):
+        """New columns follow the pattern <col>_<stat>."""
+        df = _make_df({1: 50}, n_features=2)
+        result = compute_rolling_stats(df, window_size=10)
+
+        expected = [
+            "sensor_1_mean", "sensor_1_std", "sensor_1_min", "sensor_1_max",
+            "sensor_2_mean", "sensor_2_std", "sensor_2_min", "sensor_2_max",
+        ]
+        for col in expected:
+            assert col in result.columns, f"Missing column: {col}"
+
+    def test_custom_stat_types(self):
+        """Only requested stats are computed."""
+        df = _make_df({1: 50}, n_features=1)
+        result = compute_rolling_stats(df, window_size=10, stat_types=["mean", "std"])
+
+        assert "sensor_1_mean" in result.columns
+        assert "sensor_1_std" in result.columns
+        assert "sensor_1_min" not in result.columns
+        assert "sensor_1_max" not in result.columns
+
+    # ── Values correctness ─────────────────────────────────────────
+
+    def test_rolling_mean_single_motor(self):
+        """Rolling mean matches manual calculation."""
+        df = _make_df({1: 5}, n_features=1)
+        result = compute_rolling_stats(df, window_size=3)
+
+        # sensor_1 values: 101, 102, 103, 104, 105
+        # t=1: mean(101) = 101
+        # t=2: mean(101, 102) = 101.5
+        # t=3: mean(101, 102, 103) = 102
+        # t=4: mean(102, 103, 104) = 103
+        # t=5: mean(103, 104, 105) = 104
+        expected = [101.0, 101.5, 102.0, 103.0, 104.0]
+        np.testing.assert_array_almost_equal(
+            result["sensor_1_mean"].values, expected
+        )
+
+    def test_rolling_std_single_motor(self):
+        """Rolling std matches manual calculation."""
+        df = _make_df({1: 3}, n_features=1)
+        result = compute_rolling_stats(df, window_size=3)
+
+        # t=1: std(101) = NaN (single value, ddof=1)
+        assert np.isnan(result["sensor_1_std"].iloc[0])
+        # t=2: std(101, 102) = 0.7071...
+        assert result["sensor_1_std"].iloc[1] == pytest.approx(0.7071, abs=0.01)
+        # t=3: std(101, 102, 103) = 1.0
+        assert result["sensor_1_std"].iloc[2] == pytest.approx(1.0)
+
+    def test_rolling_min_max(self):
+        """Rolling min and max are correct."""
+        df = _make_df({1: 5}, n_features=1)
+        result = compute_rolling_stats(df, window_size=3)
+
+        # t=3: window = [101, 102, 103] → min=101, max=103
+        assert result["sensor_1_min"].iloc[2] == pytest.approx(101.0)
+        assert result["sensor_1_max"].iloc[2] == pytest.approx(103.0)
+        # t=5: window = [103, 104, 105] → min=103, max=105
+        assert result["sensor_1_min"].iloc[4] == pytest.approx(103.0)
+        assert result["sensor_1_max"].iloc[4] == pytest.approx(105.0)
+
+    # ── Per-unit isolation ──────────────────────────────────────────
+
+    def test_no_cross_unit_contamination(self):
+        """Stats from one motor do not leak into another."""
+        df = _make_df({1: 5, 2: 5}, n_features=1)
+        result = compute_rolling_stats(df, window_size=3)
+
+        # Motor 1 sensor_1: 101..105, Motor 2: 201..205
+        # Mean at t=3 for motor 1 should be ~102, for motor 2 ~202
+        m1 = result[result["unit_number"] == 1]
+        m2 = result[result["unit_number"] == 2]
+
+        assert m1["sensor_1_mean"].iloc[2] == pytest.approx(102.0)
+        assert m2["sensor_1_mean"].iloc[2] == pytest.approx(202.0)
+
+    # ── NaN handling for early cycles ───────────────────────────────
+
+    def test_nan_for_insufficient_history(self):
+        """First window_size - 1 rows per unit have NaN stats."""
+        df = _make_df({1: 20}, n_features=1)
+        result = compute_rolling_stats(df, window_size=5)
+
+        # With min_periods=1, actually no NaN — stats computed from available
+        # But window_size=5 means full window only at t>=5
+        # min_periods=1 means all rows get values, so check the full window
+        assert result["sensor_1_mean"].iloc[4] == pytest.approx(
+            np.mean([101, 102, 103, 104, 105])
+        )
+
+    # ── Does not mutate input ──────────────────────────────────────
+
+    def test_input_not_mutated(self):
+        """Original DataFrame is not modified."""
+        df = _make_df({1: 10}, n_features=2)
+        original_cols = list(df.columns)
+        original_shape = df.shape
+        _ = compute_rolling_stats(df, window_size=5)
+
+        assert list(df.columns) == original_cols
+        assert df.shape == original_shape
+
+    # ── Input validation ───────────────────────────────────────────
+
+    def test_missing_unit_number_raises(self):
+        """ValueError when unit_number is missing."""
+        df = pd.DataFrame({"time": [1, 2], "sensor_1": [10, 20]})
+        with pytest.raises(ValueError, match="unit_number"):
+            compute_rolling_stats(df)
+
+    def test_empty_stat_types_raises(self):
+        """ValueError when stat_types is empty."""
+        df = _make_df({1: 10})
+        with pytest.raises(ValueError, match="No existen etadísticos para las variables Time Delay Embedding"):
+            compute_rolling_stats(df, stat_types=[])
+
+    def test_no_feature_columns_raises(self):
+        """ValueError when only identifiers are present."""
+        df = pd.DataFrame({"unit_number": [1, 1], "time": [1, 2], "rul": [1, 0]})
+        with pytest.raises(ValueError, match="columnas"):
+            compute_rolling_stats(df)
