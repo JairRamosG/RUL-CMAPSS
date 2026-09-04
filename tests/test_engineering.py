@@ -101,8 +101,10 @@ class TestCreateWindows:
 
         # Window starting at t=1: covers t=1..5, last real cycle=5, rul=5
         assert y[0] == pytest.approx(5.0)
+        # Window starting at t=5: covers t=5..9, last real cycle=9, rul=1
+        assert y[4] == pytest.approx(1.0)
         # Window starting at t=6: covers t=6..10, last real cycle=10, rul=0
-        assert y[4] == pytest.approx(0.0)
+        assert y[5] == pytest.approx(0.0)
 
     def test_target_padded_motor(self):
         """Padded motor target equals RUL at last actual cycle."""
@@ -167,7 +169,7 @@ class TestCreateWindows:
     def test_window_size_zero_raises(self):
         """ValueError when window_size < 1."""
         df = _make_df({1: 10})
-        with pytest.raises(ValueError, match="window_size"):
+        with pytest.raises(ValueError, match="ventana"):
             create_windows(df, window_size=0)
 
     def test_invalid_pad_strategy_raises(self):
@@ -179,7 +181,7 @@ class TestCreateWindows:
     def test_no_feature_columns_raises(self):
         """ValueError when only identifiers are present."""
         df = pd.DataFrame({"unit_number": [1, 1], "time": [1, 2], "rul": [1, 0]})
-        with pytest.raises(ValueError, match="No feature columns"):
+        with pytest.raises(ValueError, match="columnas para entrenar"):
             create_windows(df)
 
     # ── Does not mutate input ──────────────────────────────────────
