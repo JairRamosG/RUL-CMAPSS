@@ -116,21 +116,80 @@ def preprocess_fold(X_train: np.ndarray, X_val: np.ndarray, scaler_type: str = '
     X_val_scaled = scaler.transform(X_val)
     return X_train_scaled, X_val_scaled, scaler
 
+def full_preprocessing(subset: str = "FD001", config_path: str = "configs/config_FD001.yaml") -> dict:
+    """
+    Ejecuta el pipeline de preprocesamiento completo de preprocesamiento para el subset especificado de CMAPSS.
+
+    1. Carga los datos
+    2. Elimina los sensores constantes
+    3. Calcula el RUL piecewise lineal
+    4. Escala los datos por fold usando GroupKFold para prevenir la fuga de datos.
+
+    pipeline:
+        - load_data
+        - remove_constant_sensors
+        - compute_piecewise_rul
+    
+    Args:
+        subset: CMPASS subset de los 4 disponibles (FD001, FD002, FD003, FD004)
+        config_path: ruta al archivo de configuración YAML de los 4 disponibles
+    
+    Returns:
+        Diccionario con las keys:
+            - "train" : Datos de entrenaiento limpios con RUL calculado y sensores constantes removidos
+            - "test"  : Datos de validación limpios con RUL calculado y sensores constantes removidos
+            - "rul"   : RUL del conjunto de validación
+            - "config": configuración cargada desde el archivo YAML
+    Raises:
+        FileNotFoundError: si el archivo de configuraciónno existe
+        ValueError: si el subset del archivo de configuración no existe
+    """
+    import yaml
+    from src.data.loader import load_cmapss
+
+    # Cargar la configuración
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Archivo de configuración no encontrado: {config_path}")
+
+    if config.get("subset") != subset:
+        raise ValueError(f"Subset no encontrado en el archivo de configuración: {subset}")
+
+    # Cargar los datos crudos
+    train_df, test_df, rul = load_cmapss(subset)
+
+    # Remover los sensores constantes definidos en el experimento
+    sensors_to_remove = config['sensors']['remove']
+    train = remove_constant_sensors(train_df, sensors_to_remove)
+    test = remove_constant_sensors(test_df, sensors_to_remove)
+
+    # Calcular el RUL piecewise
+    rul_max = config['data']['rul_max']
+    train = compute_piecewise_rul(train, rul_max=rul_max)
+
+    # Regresar resultado procesado
+    return{
+        'train' : train,
+        'test' : test,
+        'rul' : rul,
+        'config' : config
+    }
+
 
 
 if __name__ == "__main__":
 
-    import pandas as pd
-
-    X_train = pd.DataFrame({
-        'feature': [np.random.randint(0, 100) for _ in range(100)]
-    })
-
-    X_val = pd.DataFrame({
-        'feature': [np.random.randint(0, 100) for _ in range(100)]
-    })
-    result = preprocess_fold(X_train.values, X_val.values, scaler_type='minmax')
-
-    print(f"X_train_scaled: {result[0][:5]}")
-    print(f"X_val_scaled: {result[1][:5]}") 
-    print(f"Scaler: {result[2]}")
+    result = full_preprocessing("FD001", "configs/config_FD001.yml")
+    print("Train shape:", result["train"].shape)
+    print("Test shape:", result["test"].shape)
+    print("RUL shape:", result["rul"].shape)
+    print("RUL:", result['rul'])
+    print()
+    print("Train columns:", list(result["train"].columns))
+    print()
+    print("RUL max:", result["train"]["rul"].max())
+    print("RUL min:", result["train"]["rul"].min())
+    print()
+    print(result["train"].head())
