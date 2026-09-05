@@ -126,5 +126,5 @@ class SKLearnModel(BaseModel):
         """Retorna hiperparámetros del modelo.
         
         Returns:
-            dict con los hiperparámetros configurados.
+            dict con los hiperparámetros configurados
         """
