@@ -60,6 +60,13 @@ models:
       learning_rate: [0.01, 0.3] # Tasa de aprendizaje
       subsample: [0.6, 1.0]      # Submuestreo de filas
 
+  - name: "lightgbm"
+    search_space:
+      n_estimators: [50, 300]    # Numero de boosting rounds
+      num_leaves: [15, 63]       # Numero de hojas (leaf-wise)
+      learning_rate: [0.01, 0.3] # Tasa de aprendizaje
+      subsample: [0.6, 1.0]      # Submuestreo de filas
+
   - name: "svr"
     search_space:
       C: [0.1, 100]              # Parametro de regularizacion
