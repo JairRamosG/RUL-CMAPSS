@@ -65,7 +65,6 @@ class SKLearnModel(BaseModel):
             params: Hiperparámetros a provar en el modelo        
         """
         self.model = model
-        self.params = params
 
     def _flatten(self, X: np.ndarray)-> np.ndarray:
         """
@@ -128,3 +127,4 @@ class SKLearnModel(BaseModel):
         Returns:
             dict con los hiperparámetros configurados
         """
+        return self.model.get_params()
