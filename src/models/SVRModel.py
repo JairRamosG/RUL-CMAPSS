@@ -12,5 +12,5 @@ class SVRModel(SKLearnModel):
         kernel: str = "rbf",
     ):
         params = {"C": C, "epsilon": epsilon, "kernel": kernel}
-        model = SVR(kernel=kernel, C=C, epsilon=epsilon)
-        super().__init__(model=model, params=params)
+        model = SVR(**params)
+        super().__init__(model=model)
