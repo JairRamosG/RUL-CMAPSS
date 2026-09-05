@@ -48,6 +48,3 @@ class BaseModel(ABC):
         """
         Retorna los hiperparámetros ontenidos del modelo, los voy a ocupar con el MLflow
         """
-        
-
-    
