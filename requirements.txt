@@ -32,6 +32,7 @@ seaborn>=0.13.0
 # --- Statistical Tests ---
 scipy>=1.11.0
 statsmodels>=0.14.0
+scikit-posthocs>=0.8.0
 
 # --- Utilities ---
 pyyaml>=6.0
