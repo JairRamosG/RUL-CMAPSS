@@ -155,6 +155,20 @@ def nasa_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     The NASA scoring function penalizes overestimation more severely
     than underestimation, as overestimation can lead to catastrophic failure.
     
+    Reference:
+        Saxena, A., Goebel, K., Simon, D., & Eklund, N. (2008).
+        Damage propagation modeling for aircraft engine run-to-failure simulation.
+        In Proceedings of the 1st International Conference on Prognostics and Health
+        Management (PHM 2008). San Diego, CA.
+    
+    Formula:
+        d_i = y_pred_i - y_true_i
+        
+        If d_i < 0 (underestimation):  s_i = exp(-d_i / 13) - 1
+        If d_i >= 0 (overestimation):  s_i = exp(d_i / 10) - 1
+        
+        NASA Score = sum(s_i)
+    
     Args:
         y_true: True RUL values.
         y_pred: Predicted RUL values.
@@ -165,7 +179,7 @@ def nasa_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     d = y_pred - y_true
     scores = np.where(
         d < 0,
-        np.exp(-d / 13) - 1,  # Overestimation
-        np.exp(d / 10) - 1    # Underestimation
+        np.exp(-d / 13) - 1,  # Underestimation
+        np.exp(d / 10) - 1    # Overestimation 
     )
     return np.sum(scores)
