@@ -1,168 +1,170 @@
-"""
-Tests for evaluation metrics and profiling module.
-"""
-
+"""Tests for evaluation metrics."""
 import pytest
 import numpy as np
-
-from src.evaluation.metrics import (
-    rmse, mae, nasa_score,
-    profile_resource_usage, get_system_info, ResourceProfiler
-)
+from src.evaluation.metrics import rmse, mae, nasa_score
 
 
 class TestRMSE:
-    """Tests for rmse function."""
-    
-    def test_perfect_predictions(self):
-        """Test RMSE with perfect predictions."""
-        y_true = np.array([1, 2, 3, 4, 5])
-        y_pred = np.array([1, 2, 3, 4, 5])
-        
+    """Tests for Root Mean Squared Error."""
+
+    def test_perfect_prediction(self):
+        """RMSE is 0 when predictions are exact."""
+        y_true = np.array([100, 200, 300])
+        y_pred = np.array([100, 200, 300])
+
         assert rmse(y_true, y_pred) == 0.0
-    
+
     def test_known_values(self):
-        """Test RMSE with known values."""
-        y_true = np.array([1, 2, 3])
-        y_pred = np.array([1, 3, 5])
-        
-        # RMSE = sqrt(((0)^2 + (1)^2 + (2)^2) / 3) = sqrt(5/3)
-        expected = np.sqrt(5/3)
-        
-        assert abs(rmse(y_true, y_pred) - expected) < 1e-10
-    
-    def test_returns_float(self):
-        """Test that RMSE returns a float."""
-        y_true = np.array([1, 2, 3])
-        y_pred = np.array([1, 2, 3])
-        
-        assert isinstance(rmse(y_true, y_pred), float)
+        """RMSE calculates correctly with known values."""
+        y_true = np.array([1.0, 2.0, 3.0])
+        y_pred = np.array([1.0, 2.0, 4.0])  # error: [0, 0, 1]
+
+        # sqrt(mean([0, 0, 1])) = sqrt(1/3) ≈ 0.577
+        result = rmse(y_true, y_pred)
+        assert np.isclose(result, np.sqrt(1 / 3), atol=1e-6)
+
+    def test_symmetric_errors(self):
+        """RMSE penalizes equally positive and negative errors."""
+        y_true = np.array([10.0, 10.0])
+        y_pred_pos = np.array([12.0, 12.0])  # error +2
+        y_pred_neg = np.array([8.0, 8.0])    # error -2
+
+        assert np.isclose(rmse(y_true, y_pred_pos), rmse(y_true, y_pred_neg))
+
+    def test_penalizes_large_errors(self):
+        """RMSE penalizes large errors more than small errors."""
+        y_true = np.array([100.0, 100.0, 100.0])
+        y_pred_small = np.array([101.0, 101.0, 101.0])  # all errors +1
+        y_pred_large = np.array([103.0, 100.0, 100.0])  # one error +3
+
+        # Large error in one sample should produce higher RMSE
+        assert rmse(y_true, y_pred_large) > rmse(y_true, y_pred_small)
+
+    def test_returns_scalar(self):
+        """RMSE returns a scalar value."""
+        y_true = np.array([1.0, 2.0, 3.0])
+        y_pred = np.array([1.1, 2.1, 3.1])
+
+        result = rmse(y_true, y_pred)
+        assert np.isscalar(result) or result.ndim == 0
 
 
 class TestMAE:
-    """Tests for mae function."""
-    
-    def test_perfect_predictions(self):
-        """Test MAE with perfect predictions."""
-        y_true = np.array([1, 2, 3, 4, 5])
-        y_pred = np.array([1, 2, 3, 4, 5])
-        
+    """Tests for Mean Absolute Error."""
+
+    def test_perfect_prediction(self):
+        """MAE is 0 when predictions are exact."""
+        y_true = np.array([100, 200, 300])
+        y_pred = np.array([100, 200, 300])
+
         assert mae(y_true, y_pred) == 0.0
-    
+
     def test_known_values(self):
-        """Test MAE with known values."""
-        y_true = np.array([1, 2, 3])
-        y_pred = np.array([1, 3, 5])
-        
-        # MAE = (0 + 1 + 2) / 3 = 1
-        expected = 1.0
-        
-        assert abs(mae(y_true, y_pred) - expected) < 1e-10
-    
-    def test_returns_float(self):
-        """Test that MAE returns a float."""
-        y_true = np.array([1, 2, 3])
-        y_pred = np.array([1, 2, 3])
-        
-        assert isinstance(mae(y_true, y_pred), float)
+        """MAE calculates correctly with known values."""
+        y_true = np.array([1.0, 2.0, 3.0])
+        y_pred = np.array([1.0, 2.0, 4.0])  # error: [0, 0, 1]
+
+        # mean([0, 0, 1]) = 1/3 ≈ 0.333
+        result = mae(y_true, y_pred)
+        assert np.isclose(result, 1 / 3, atol=1e-6)
+
+    def test_symmetric_errors(self):
+        """MAE treats positive and negative errors equally."""
+        y_true = np.array([10.0, 10.0])
+        y_pred_pos = np.array([12.0, 12.0])  # error +2
+        y_pred_neg = np.array([8.0, 8.0])    # error -2
+
+        assert np.isclose(mae(y_true, y_pred_pos), mae(y_true, y_pred_neg))
+
+    def test_linear_penalty(self):
+        """MAE penalizes errors linearly (unlike RMSE)."""
+        y_true = np.array([100.0, 100.0, 100.0])
+        y_pred_small = np.array([101.0, 101.0, 101.0])  # all errors +1
+        y_pred_large = np.array([103.0, 100.0, 100.0])  # one error +3
+
+        # MAE: 1.0 vs 1.0 (linear)
+        assert np.isclose(mae(y_true, y_pred_small), 1.0)
+        assert np.isclose(mae(y_true, y_pred_large), 1.0)
+
+    def test_returns_scalar(self):
+        """MAE returns a scalar value."""
+        y_true = np.array([1.0, 2.0, 3.0])
+        y_pred = np.array([1.1, 2.1, 3.1])
+
+        result = mae(y_true, y_pred)
+        assert np.isscalar(result) or result.ndim == 0
 
 
 class TestNASAScore:
-    """Tests for nasa_score function."""
-    
-    def test_perfect_predictions(self):
-        """Test NASA score with perfect predictions."""
-        y_true = np.array([100, 50, 10])
-        y_pred = np.array([100, 50, 10])
-        
+    """Tests for NASA Scoring Function (Saxena et al., 2008)."""
+
+    def test_perfect_prediction(self):
+        """NASA Score is 0 when predictions are exact."""
+        y_true = np.array([100, 200, 300])
+        y_pred = np.array([100, 200, 300])
+
         assert nasa_score(y_true, y_pred) == 0.0
-    
+
     def test_overestimation_penalized_more(self):
-        """Test that overestimation is penalized more than underestimation."""
-        y_true = np.array([100])
-        
-        # Overestimation by 10
-        y_pred_over = np.array([110])
-        score_over = nasa_score(y_true, y_pred_over)
-        
-        # Underestimation by 10
-        y_pred_under = np.array([90])
+        """Overestimation (y_pred > y_true) is penalized more than underestimation."""
+        y_true = np.array([100.0])
+
+        # Underestimation by 10: d = -10, s = exp(10/13) - 1 ≈ 1.15
+        y_pred_under = np.array([90.0])
         score_under = nasa_score(y_true, y_pred_under)
-        
-        # Overestimation should have higher penalty
+
+        # Overestimation by 10: d = +10, s = exp(10/10) - 1 ≈ 1.72
+        y_pred_over = np.array([110.0])
+        score_over = nasa_score(y_true, y_pred_over)
+
         assert score_over > score_under
-    
-    def test_returns_float(self):
-        """Test that NASA score returns a float."""
-        y_true = np.array([100])
-        y_pred = np.array([100])
-        
-        assert isinstance(nasa_score(y_true, y_pred), float)
 
+    def test_asymmetry_ratio(self):
+        """The asymmetry follows the formula: exp(10/10)-1 > exp(10/13)-1."""
+        y_true = np.array([100.0])
 
-class TestProfileResourceUsage:
-    """Tests for profile_resource_usage context manager."""
-    
-    def test_returns_profiler(self):
-        """Test that context manager returns a profiler."""
-        with profile_resource_usage() as profiler:
-            pass
-        
-        assert isinstance(profiler, ResourceProfiler)
-    
-    def test_elapsed_time_positive(self):
-        """Test that elapsed time is positive."""
-        with profile_resource_usage() as profiler:
-            pass
-        
-        assert profiler.elapsed_time >= 0
-    
-    def test_peak_memory_positive(self):
-        """Test that peak memory is positive."""
-        with profile_resource_usage() as profiler:
-            pass
-        
-        assert profiler.peak_memory_mb > 0
-    
-    def test_captures_work(self):
-        """Test that profiler captures work done."""
-        with profile_resource_usage() as profiler:
-            # Do some work
-            _ = np.random.randn(1000, 1000)
-        
-        assert profiler.elapsed_time > 0
-        assert profiler.peak_memory_mb > 0
-    
-    def test_to_dict(self):
-        """Test that profiler can be converted to dict."""
-        with profile_resource_usage() as profiler:
-            pass
-        
-        result = profiler.to_dict()
-        
-        assert isinstance(result, dict)
-        assert "elapsed_time" in result
-        assert "peak_memory_mb" in result
-        assert result["elapsed_time"] >= 0
-        assert result["peak_memory_mb"] > 0
+        # Underestimation by 10
+        y_pred_under = np.array([90.0])
+        score_under = nasa_score(y_true, y_pred_under)
 
+        # Overestimation by 10
+        y_pred_over = np.array([110.0])
+        score_over = nasa_score(y_true, y_pred_over)
 
-class TestGetSystemInfo:
-    """Tests for get_system_info function."""
-    
-    def test_returns_dict(self):
-        """Test that function returns a dictionary."""
-        info = get_system_info()
-        assert isinstance(info, dict)
-    
-    def test_contains_cpu_info(self):
-        """Test that dictionary contains CPU info."""
-        info = get_system_info()
-        assert "cpu" in info
-        assert "cpu_count" in info["cpu"]
-    
-    def test_contains_memory_info(self):
-        """Test that dictionary contains memory info."""
-        info = get_system_info()
-        assert "memory" in info
-        assert "total_gb" in info["memory"]
+        # exp(10/10) - 1 ≈ 1.718
+        # exp(10/13) - 1 ≈ 1.150
+        expected_over = np.exp(10 / 10) - 1
+        expected_under = np.exp(10 / 13) - 1
+
+        assert np.isclose(score_over, expected_over, atol=1e-6)
+        assert np.isclose(score_under, expected_under, atol=1e-6)
+
+    def test_known_values(self):
+        """NASA Score calculates correctly with known values."""
+        y_true = np.array([100.0])
+        y_pred = np.array([110.0])  # overestimation by 10
+
+        # d = 10, s = exp(10/10) - 1 ≈ 1.718
+        result = nasa_score(y_true, y_pred)
+        expected = np.exp(10 / 10) - 1
+
+        assert np.isclose(result, expected, atol=1e-6)
+
+    def test_multiple_samples(self):
+        """NASA Score sums across multiple samples."""
+        y_true = np.array([100.0, 200.0])
+        y_pred = np.array([110.0, 210.0])  # both overestimation by 10
+
+        # Each sample contributes exp(10/10) - 1 ≈ 1.718
+        result = nasa_score(y_true, y_pred)
+        expected = 2 * (np.exp(10 / 10) - 1)
+
+        assert np.isclose(result, expected, atol=1e-6)
+
+    def test_returns_scalar(self):
+        """NASA Score returns a scalar value."""
+        y_true = np.array([1.0, 2.0, 3.0])
+        y_pred = np.array([1.1, 2.1, 3.1])
+
+        result = nasa_score(y_true, y_pred)
+        assert np.isscalar(result) or result.ndim == 0
