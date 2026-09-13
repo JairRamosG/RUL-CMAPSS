@@ -1,19 +1,20 @@
 """
-Test estadísticos para comparar los modelos en grupos pareados
+Statistical tests for model comparison (paired/dependent groups).
 
-Este módulo tiene funciones para comprar el deseméño de modelos usando
-los test estadísticos adecuados en un diseño de bloque para mismas iteraciones.
+This module provides functions for comparing model performance using
+appropriate statistical tests under a block design (same folds/iterations).
 
-Es agnóstico a la variable que se quiera probar, puede trabajar con RMSE, 
-tiempo de inferencia, tiempo de entrenamiento, memoria usada o cualquier arreglo.
+The module is agnostic to the variable being tested - it works with
+RMSE, inference time, training time, memory usage, or any numeric array.
 
-Lógica de selección de Test:
-    1. Checa la normalidad en residuos con Shapiro-Wilk
-    2. Seleccióna pruebas paramétricas o no paramétricas
-        - Normalidad usa ANOVA de medidas repetidas y Bonferroni
-        - Sin normalidad usa Friedman y Nemenyi
+Test selection logic:
+    1. Check normality of two-way ANOVA residuals (Shapiro-Wilk)
+        e_ij = y_ij - mean(block_i) - mean(model_j) + grand_mean
+    2. Select parametric or non-parametric test:
+        - Normal → Repeated Measures ANOVA + Bonferroni post-hoc
+        - Non-normal → Friedman + Nemenyi post-hoc
 
-Referencia:
+Reference:
     Demšar, J. (2006). Statistical comparisons of classifiers over multiple data sets.
     Journal of Machine Learning Research, 7, 1-30.
 """
@@ -35,7 +36,7 @@ class ComparisonResult:
         significant: Whether the result is significant (p < alpha).
         reason: Justification for why this test was chosen.
         post_hoc_matrix: Dictionary with pairwise p-values (if applicable).
-        rankings: Dictionary with average ranks per model (if applicable).
+        rankings: Dictionary with average ranks per model (rank 1.0 is best).
     """
     test_used: str
     omnibus_p_value: float
@@ -99,6 +100,7 @@ def friedman_test(
     *groups: np.ndarray,
     alpha: float = 0.05,
     model_names: Optional[List[str]] = None,
+    higher_is_better: bool = False,
 ) -> ComparisonResult:
     """Perform Friedman test with Nemenyi post-hoc analysis.
 
@@ -110,9 +112,10 @@ def friedman_test(
         *groups: Variable number of arrays, one per model (same length).
         alpha: Significance level.
         model_names: Optional list of model names.
+        higher_is_better: Whether higher values are better (default False: lower is better).
 
     Returns:
-        ComparisonResult with test details and post-hoc matrix.
+        ComparisonResult with test details, post-hoc matrix, and rankings.
     """
     if len(groups) < 2:
         raise ValueError("Need at least 2 groups for comparison")
@@ -136,9 +139,10 @@ def friedman_test(
     stat, p_value = stats.friedmanchisquare(*groups_arr)
     significant = bool(p_value < alpha)
 
-    # Calculate average ranks
+    # Calculate average ranks (rank 1.0 is best performing)
     stacked = np.column_stack(groups_arr)
-    ranks = np.apply_along_axis(stats.rankdata, 1, stacked)
+    rank_input = -stacked if higher_is_better else stacked
+    ranks = np.apply_along_axis(stats.rankdata, 1, rank_input)
     avg_ranks = np.mean(ranks, axis=0)
     rankings = {name: float(rank) for name, rank in zip(model_names, avg_ranks)}
 
@@ -150,7 +154,6 @@ def friedman_test(
 
             # scikit-posthocs expects matrix [n_obs x n_models]
             nemenyi_result = sp.posthoc_nemenyi_friedman(stacked)
-            # Convert to dict for JSON serialization
             post_hoc_matrix = {}
             for i, name_i in enumerate(model_names):
                 post_hoc_matrix[name_i] = {}
@@ -158,13 +161,10 @@ def friedman_test(
                     post_hoc_matrix[name_i][name_j] = float(nemenyi_result.iloc[i, j])
         except ImportError:
             post_hoc_matrix = {
-                "error": "scikit-posthocs not installed. Install with: pip install scikit-posthocs"
+                "error": "scikit-posthocs not installed. Install with: uv add scikit-posthocs"
             }
 
-    reason = (
-        f"Friedman test (non-parametric): p={p_value:.4f}. "
-        f"Reason: {'Normal' if False else 'Non-normal'} distribution detected."
-    )
+    reason = f"Friedman test (non-parametric): Q={stat:.4f}, p={p_value:.4f}."
 
     return ComparisonResult(
         test_used="Friedman + Nemenyi",
@@ -180,19 +180,22 @@ def repeated_measures_anova(
     *groups: np.ndarray,
     alpha: float = 0.05,
     model_names: Optional[List[str]] = None,
+    higher_is_better: bool = False,
 ) -> ComparisonResult:
     """Perform Repeated Measures ANOVA with Bonferroni post-hoc analysis.
 
     Parametric test for comparing k >= 3 paired groups.
+    Includes verification of sphericity (Greenhouse-Geisser epsilon).
     If significant, performs paired t-tests with Bonferroni correction.
 
     Args:
         *groups: Variable number of arrays, one per model (same length).
         alpha: Significance level.
         model_names: Optional list of model names.
+        higher_is_better: Whether higher values are better (default False: lower is better).
 
     Returns:
-        ComparisonResult with test details and post-hoc matrix.
+        ComparisonResult with test details, post-hoc matrix, and rankings.
     """
     if len(groups) < 2:
         raise ValueError("Need at least 2 groups for comparison")
@@ -212,6 +215,13 @@ def repeated_measures_anova(
     if model_names is None:
         model_names = [f"Model {i+1}" for i in range(n_models)]
 
+    # Calculate average ranks (rank 1.0 is best performing)
+    stacked = np.column_stack(groups_arr)
+    rank_input = -stacked if higher_is_better else stacked
+    ranks = np.apply_along_axis(stats.rankdata, 1, rank_input)
+    avg_ranks = np.mean(ranks, axis=0)
+    rankings = {name: float(rank) for name, rank in zip(model_names, avg_ranks)}
+
     # Repeated Measures ANOVA using pingouin
     try:
         import pandas as pd
@@ -220,77 +230,70 @@ def repeated_measures_anova(
         # Create DataFrame in long format: [subject, model, value]
         data_list = []
         for fold_idx in range(n_obs):
-            for model_idx, (group, name) in enumerate(
-                zip(groups_arr, model_names)
-            ):
+            for group, name in zip(groups_arr, model_names):
                 data_list.append(
-                    {"subject": fold_idx, "model": name, "value": group[fold_idx]}
+                    {"subject": fold_idx, "model": name, "value": float(group[fold_idx])}
                 )
 
         df = pd.DataFrame(data_list)
 
-        # Perform RM-ANOVA
-        aov = pg.rm_anova(dv="value", within="model", subject="subject", data=df)
-        p_value = aov["p_unc"].values[0]
-        f_stat = aov["F"].values[0]
-        df_between = aov["ddof1"].values[0]
-        df_error = aov["ddof2"].values[0]
+        # Perform RM-ANOVA with sphericity evaluation
+        aov = pg.rm_anova(dv="value", within="model", subject="subject", data=df, correction=True)
+        f_stat = float(aov["F"].values[0])
+        df_between = float(aov["ddof1"].values[0])
+        df_error = float(aov["ddof2"].values[0])
+        eps = float(aov["eps"].values[0]) if "eps" in aov.columns else 1.0
+
+        # Use Greenhouse-Geisser corrected p-value if sphericity is violated (eps < 0.75)
+        p_corr_col = None
+        for col in ["p_GG_corr", "p-GG-corr", "p_corr", "p-corr"]:
+            if col in aov.columns:
+                p_corr_col = col
+                break
+
+        if p_corr_col and eps < 0.75:
+            p_value = float(aov[p_corr_col].values[0])
+            sphericity_note = f"Greenhouse-Geisser correction applied (eps={eps:.4f})"
+        else:
+            p_value = float(aov["p_unc"].values[0])
+            sphericity_note = f"Sphericity assumed (eps={eps:.4f})"
 
         significant = bool(p_value < alpha)
-
-        # Calculate average ranks
-        stacked = np.column_stack(groups_arr)
-        ranks = np.apply_along_axis(stats.rankdata, 1, stacked)
-        avg_ranks = np.mean(ranks, axis=0)
-        rankings = {name: float(rank) for name, rank in zip(model_names, avg_ranks)}
 
         # Post-hoc Bonferroni-corrected paired t-tests if significant
         post_hoc_matrix = None
         if significant:
-            post_hoc_matrix = {}
+            # Pre-initialize symmetric matrix to avoid overwriting entries
+            post_hoc_matrix = {
+                name_i: {name_j: 1.0 for name_j in model_names}
+                for name_i in model_names
+            }
             n_comparisons = n_models * (n_models - 1) // 2
 
-            for i, name_i in enumerate(model_names):
-                post_hoc_matrix[name_i] = {}
-                for j, name_j in enumerate(model_names):
-                    if i == j:
-                        post_hoc_matrix[name_i][name_j] = 1.0
-                    elif j > i:
-                        # Paired t-test
-                        _, p_val = stats.ttest_rel(groups_arr[i], groups_arr[j])
-                        # Bonferroni correction
-                        p_corrected = min(p_val * n_comparisons, 1.0)
-                        post_hoc_matrix[name_i][name_j] = float(p_corrected)
-                        # Mirror in reverse direction
-                        if name_j not in post_hoc_matrix:
-                            post_hoc_matrix[name_j] = {}
-                        post_hoc_matrix[name_j][name_i] = float(p_corrected)
-                    # Already computed in reverse direction
+            for i in range(n_models):
+                for j in range(i + 1, n_models):
+                    name_i = model_names[i]
+                    name_j = model_names[j]
+                    _, p_val = stats.ttest_rel(groups_arr[i], groups_arr[j])
+                    p_corrected = float(min(p_val * n_comparisons, 1.0))
+                    post_hoc_matrix[name_i][name_j] = p_corrected
+                    post_hoc_matrix[name_j][name_i] = p_corrected
 
         reason = (
-            f"Repeated Measures ANOVA (parametric): F={f_stat:.4f}, "
-            f"df=({df_between},{df_error}), p={p_value:.4f}. "
-            f"Reason: Normal distribution detected."
+            f"Repeated Measures ANOVA: F={f_stat:.4f}, df=({df_between:.1f}, {df_error:.1f}), "
+            f"p={p_value:.4f}. {sphericity_note}."
         )
 
     except ImportError:
-        # Fallback: one-way ANOVA if pingouin not available
+        # Fallback: one-way ANOVA if pingouin is not available
         stat, p_value = stats.f_oneway(*groups_arr)
         significant = bool(p_value < alpha)
-
-        # Calculate average ranks
-        stacked = np.column_stack(groups_arr)
-        ranks = np.apply_along_axis(stats.rankdata, 1, stacked)
-        avg_ranks = np.mean(ranks, axis=0)
-        rankings = {name: float(rank) for name, rank in zip(model_names, avg_ranks)}
-
         post_hoc_matrix = {
-            "error": "pingouin not installed. Install with: pip install pingouin"
+            "error": "pingouin not installed. Install with: uv add pingouin"
         }
-
         reason = (
             f"One-way ANOVA fallback (pingouin not installed): F={stat:.4f}, "
-            f"p={p_value:.4f}. Reason: Normal distribution detected."
+            f"p={p_value:.4f}."
         )
 
     return ComparisonResult(
@@ -307,6 +310,7 @@ def compare_multiple_models(
     *groups: np.ndarray,
     alpha: float = 0.05,
     model_names: Optional[List[str]] = None,
+    higher_is_better: bool = False,
     force_test: Optional[str] = None,
 ) -> ComparisonResult:
     """Compare multiple models using the appropriate statistical test.
@@ -321,6 +325,7 @@ def compare_multiple_models(
         *groups: Variable number of arrays with results per fold for each model.
         alpha: Significance level.
         model_names: Optional list of model names.
+        higher_is_better: Whether higher values are better (default False: lower is better).
         force_test: Force specific test ("friedman" or "rm_anova").
 
     Returns:
@@ -341,20 +346,25 @@ def compare_multiple_models(
             f"number of groups ({n_models})"
         )
 
-    # Check normality of residuals (differences from mean across models)
+    # Check normality of residuals in Randomized Complete Block Design (RCBD)
+    # Formula: e_ij = y_ij - mean(block_i) - mean(model_j) + grand_mean
     stacked = np.column_stack(groups_arr)
-    row_means = np.mean(stacked, axis=1)
-    residuals = stacked - row_means[:, np.newaxis]
-    # Test normality of flattened residuals
+    block_means = np.mean(stacked, axis=1, keepdims=True)
+    model_means = np.mean(stacked, axis=0, keepdims=True)
+    grand_mean = np.mean(stacked)
+
+    residuals = stacked - block_means - model_means + grand_mean
     residuals_flat = residuals.flatten()
     is_normal, normal_p, normal_reason = check_normality(residuals_flat, alpha)
 
     # Force test if specified
     if force_test == "friedman":
-        return friedman_test(*groups_arr, alpha=alpha, model_names=model_names)
+        return friedman_test(
+            *groups_arr, alpha=alpha, model_names=model_names, higher_is_better=higher_is_better
+        )
     elif force_test == "rm_anova":
         return repeated_measures_anova(
-            *groups_arr, alpha=alpha, model_names=model_names
+            *groups_arr, alpha=alpha, model_names=model_names, higher_is_better=higher_is_better
         )
     elif force_test is not None:
         raise ValueError(
@@ -362,20 +372,22 @@ def compare_multiple_models(
             f"Must be 'friedman', 'rm_anova', or None."
         )
 
-    # Auto-select based on normality
+    # Auto-select based on normality of two-way residuals
     if is_normal:
         result = repeated_measures_anova(
-            *groups_arr, alpha=alpha, model_names=model_names
+            *groups_arr, alpha=alpha, model_names=model_names, higher_is_better=higher_is_better
         )
         result.reason = (
-            f"Normal distribution detected (Shapiro p={normal_p:.4f}). "
-            f"Using parametric test: {result.test_used}."
+            f"Normal residuals detected (Shapiro p={normal_p:.4f}). "
+            f"Using parametric test: {result.test_used}. {result.reason}"
         )
     else:
-        result = friedman_test(*groups_arr, alpha=alpha, model_names=model_names)
+        result = friedman_test(
+            *groups_arr, alpha=alpha, model_names=model_names, higher_is_better=higher_is_better
+        )
         result.reason = (
-            f"Non-normal distribution detected (Shapiro p={normal_p:.4f}). "
-            f"Using non-parametric test: {result.test_used}."
+            f"Non-normal residuals detected (Shapiro p={normal_p:.4f}). "
+            f"Using non-parametric test: {result.test_used}. {result.reason}"
         )
 
     return result
