@@ -3,7 +3,7 @@ from src.models.sklearn_wrapper import SKLearnModel
 
 
 class LightGBMModel(SKLearnModel):
-    """LightGBM para predicción de RUL."""
+    """Modelo LightGBM para predicción de RUL."""
     
     def __init__(
             self,
