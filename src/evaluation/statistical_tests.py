@@ -1,5 +1,5 @@
 """
-Statistical tests for model comparison (paired/dependent groups).
+Tes estadísticos sobre grupos pareados.
 
 This module provides functions for comparing model performance using
 appropriate statistical tests under a block design (same folds/iterations).
