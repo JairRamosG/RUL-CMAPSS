@@ -22,5 +22,5 @@ class XGBoostModel(SKLearnModel):
             "n_jobs": n_jobs
         }
 
-        model = xgb.XGBRFRegressor(**params)
+        model = xgb.XGBRegressor(**params)
         super().__init__(model=model)
