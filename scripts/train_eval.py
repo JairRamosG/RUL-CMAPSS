@@ -66,3 +66,68 @@ def parse_args() -> argparse.Namespace:
     )
 
     return parser.parse_args()
+
+def load_config(config_path:str | Path) -> dict:
+    """
+    Carga y valida los archivos de configuración YAML de los experimentos.
+
+    Args:
+        config_path: Ruta del archivo YAML
+
+    Returns:
+        dict con la información del experimento
+    
+    Raises:
+        FileNotFoundError: Si el archivo no existe en el sistema de archivos
+        ValueError: Le faltan secciónes al archivo de configuración
+    """
+
+    path = Path(config_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"No se encontró el archivo de configuración en : {path.resolve()}")
+
+    with open(path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    # Validación de las secciónes del archivo de configuración YAML
+    required_sections = ["subset", "data", "models", "evaluation", "experiment"]
+    missing = [sec for sec in required_sections if sec not in config]
+    if missing:
+        raise ValueError(f"El archivo {path.name} no es válido para los experimentos. Le falta: {missing}")
+    
+    logger.info(f"Configuración correcta cargada desde: {path.name}")
+    return config
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
