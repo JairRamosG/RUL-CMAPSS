@@ -116,9 +116,32 @@ def set_seed(seed: int = 42) -> None:
         torch.backends.benchmark = False
     logger.info(f"Semilla determinística establecida en: {seed}")
 
+# Función principal
+def main() -> None:
+    """
+    Función principal
+    """
 
+    args = parse_args()
+    logger.info(f"Iniciando el experimento con argumentos: {vars(args)}")
 
+    config = load_config(args.config)
+    seed = config.get("experiment", {}).get("random_seed", 42)
+    set_seed(seed)
 
+    # Filtrado opcional de modelos
+    configured_models = [m["name"] for m in config.get("models", [])]
+    if args.models:
+        selected_models = [m for m in configured_models if m in args.models]
+        logger.info(f"Modelos seleccionádos: {selected_models}")
+    else:
+        selected_models = configured_models
+        logger.info(f"Se evaluarán todos los modelos")
+    if args.dry_run:
+        logger.warning(f"Entrenamiento en modo de pruebas rapido")
+
+if __name__ == "__main__":
+    main()
 
 
 
