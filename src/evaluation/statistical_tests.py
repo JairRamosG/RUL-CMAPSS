@@ -1,5 +1,5 @@
 """
-Tes estadísticos sobre grupos pareados.
+Test estadísticos sobre grupos pareados.
 
 This module provides functions for comparing model performance using
 appropriate statistical tests under a block design (same folds/iterations).
