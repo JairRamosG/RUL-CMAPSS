@@ -67,6 +67,7 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+# Cargar el archivo de configuración
 def load_config(config_path:str | Path) -> dict:
     """
     Carga y valida los archivos de configuración YAML de los experimentos.
@@ -98,6 +99,22 @@ def load_config(config_path:str | Path) -> dict:
     logger.info(f"Configuración correcta cargada desde: {path.name}")
     return config
 
+# Definir la semilla aleatoria
+def set_seed(seed: int = 42) -> None:
+    """
+    Fija la semilla para ejecutar todos los experimentos con reproducibilidad
+
+    Args:
+        seed: Valor entero     
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic=True
+        torch.backends.benchmark = False
+    logger.info(f"Semilla determinística establecida en: {seed}")
 
 
 
