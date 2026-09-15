@@ -29,5 +29,40 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-
 logger = logging.getLogger("train_eval")
+
+# Parsing para la línea de comandos
+def parse_args() -> argparse.Namespace:
+    """
+    Parseo para la línea de comandos
+
+    Returns:
+        argparse.Namespace con los argumentos
+    """
+    parser = argparse.ArgumentParser(
+        description= "Pipeline de entrenamiento, evaluación y tracking con MLflow para el C-Mapss",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--config",
+        type = str,
+        default= "configs/config_FD001.yaml",
+        help= "Ruta del archivo YAML de configuración del experimento"
+    )
+
+    parser.add_argument(
+        "--models",
+        args="+",
+        default=None,
+        help="Lista de modelos específicos a evaluar"
+            "Si no se especifican, se evalúan todos los modelos"
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        action = "store_true",
+        help="Modo de pruebas rápido con datos/folds reducidos para ahorro computacional"
+    )
+
+    return parser.parse_args()
