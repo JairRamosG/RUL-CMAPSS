@@ -33,7 +33,14 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.data.loader import load_cmapss
 from src.data.preprocessing import remove_constant_sensors, compute_piecewise_rul
 from src.features.engineering import compute_rolling_stats, compute_trends, create_windows
-
+from src.models.base import BaseModel
+from src.models.RFModel import RFModel
+from src.models.XGBoostModel import XGBoostModel
+from src.models.LightGBMModel import LightGBMModel
+from src.models.SVRModel import SVRModel
+from src.models.MLPModel import MLPModel
+from src.models.CNN1DModel import CNN1DModel
+from src.models.LSTMModel import LSTMModel
 
 
 # Configuracción de los loggings
@@ -229,6 +236,62 @@ def scale_and_window_fold(
 
     return X_train, y_train, X_val, y_val
 
+def build_model(
+        model_name = str,
+        model_params = dict,
+        input_shape = tuple[int, int],
+) -> BaseModel:
+    """
+    Instancia dinámicamente los modelos de ML Clásico y DL.
+    Conecta hiperparámetros del YAML y la forma de entrada temporal con el constructor
+    específico para cada algorítmo de las categorías.
+
+    Args: 
+        model_name: Identificador del modelo
+        model_params: Diccionario de hiperparámetros de la configuración
+        input_shape: TUpla (window_size, num_features) para el tensor 3D
+    
+    Returns:
+        Instancia configurada que hereda del BaseModel (fit, predict, get_params)
+
+    Raises:
+        ValueError: Si el nombre del modelo no se reconoce
+        NotImplementedError: Para la memoria asociativa
+    """
+
+    window_size, num_features = input_shape
+    input_dim_flattened = window_size * num_features
+    params = model_params.copy() if model_params else {}
+
+    # Modelos basados en ML Clásico (Arboles y Kernel)
+    if model_name in ("random_forest", "rf"):
+        return RFModel(**params)
+
+    elif model_name == "xgboost":
+        return XGBoostModel(**params)
+
+    elif model_name == "lightgbm":
+        return LightGBMModel(**params)
+
+    elif model_name == "svr":
+        return SVRModel(**params)
+
+    # Modelos basados en DL
+    elif model_name == "mlp":
+        return MLPModel(input_dim= input_dim_flattened, **params)
+
+    elif model_name == "cnn1d":
+        return CNN1DModel(num_features=num_features, window_size=window_size, **params)
+
+    elif model_name == "lstm":
+        return LSTMModel(num_features=num_features, **params)
+
+    # Memorias asociativas
+    elif model_name == "asociative_memory":
+        raise NotImplementedError("Hay que programar la memoria asociativa")
+
+    else:
+        raise ValueError(f"Modelo no soportado: {model_name}")
 
 # Función principal
 def main() -> None:
@@ -268,6 +331,7 @@ def main() -> None:
     feature_cols = [col for col in train_enriched.columns if col not in exclude]
     logger.info(f"Total de características para modelado: {len(feature_cols)}")
 
+    #----------------------------------------------------------------------------------------
     # Prueba rápida de la función anti-leakage con una partición simple (ej. motores 1..10 val, resto train)
     val_units = [1, 2] if args.dry_run else list(range(1, 11))
     f_val = train_enriched[train_enriched["unit_number"].isin(val_units)]
@@ -278,6 +342,18 @@ def main() -> None:
     logger.info("Shapes generados -> X_train: %s, y_train: %s | X_val: %s, y_val: %s", 
                 X_tr.shape, y_tr.shape, X_va.shape, y_va.shape)
 
+    # Prueba del Factory de modelos
+    input_shape = (X_tr.shape[1], X_tr.shape[2])  # (30, 102)
+    models_dict = {m["name"]: m.get("params", {}) for m in config.get("models", [])}
+
+    logger.info("--- Probando Factory de Modelos (Input Shape: %s) ---", input_shape)
+    for m_name in selected_models:
+        if m_name == "associative_memory":
+            continue  # Fuera de alcance en esta fase
+
+        m_params = models_dict.get(m_name, {})
+        model_instance = build_model(m_name, m_params, input_shape=input_shape)
+        logger.info("Instanciado con éxito: %s -> %s", m_name, model_instance.__class__.__name__)
 
 if __name__ == "__main__":
     main()
