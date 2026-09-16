@@ -182,7 +182,7 @@ def extract_features(df: pd.DataFrame, config: dict) -> pd.DataFrame:
         df_features = compute_rolling_stats(df_features, window_size = w_size, stat_types = stat_types)
 
     # Calcular tendencias y diferencias finitas
-    trends_cfg = config.get("trends", {})
+    trends_cfg = fe_cfg.get("trends", {})
     if trends_cfg.get("enabled", False):
         delta_steps = trends_cfg.get("delta_steps", [1])
         logger.info(f"Calculando las tendencias de cada sensor con deltas: {delta_steps}")
