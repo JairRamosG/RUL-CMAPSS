@@ -172,7 +172,7 @@ def extract_features(df: pd.DataFrame, config: dict) -> pd.DataFrame:
         w_size = rolling_cfg.get("window_size", 30)
         stat_types = rolling_cfg.get("stat_types", ["mean", "std", "min", "max"])
         logger.info(f"Calculando las rolling stats W:{w_size} - stats: {stat_types}")
-        df_features = compute_trends(df_features, window_size = w_size, stat_types = stat_types)
+        df_features = compute_rolling_stats(df_features, window_size = w_size, stat_types = stat_types)
 
     # Calcular tendencias y diferencias finitas
     trends_cfg = config.get("trends", {})
@@ -181,6 +181,46 @@ def extract_features(df: pd.DataFrame, config: dict) -> pd.DataFrame:
         logger.info(f"Calculando las tendencias de cada sensor con deltas: {delta_steps}")
         df_features = compute_trends(df_features, delta_steps = delta_steps, base_features_only = True)
     return df_features
+
+def scale_and_window_fold(
+    train_fold_df: pd.DataFrame,
+    val_fold_df: pd.DataFrame,
+    feature_cols: list[str],
+    window_size: int = 30,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Escala las características y estructura en ventanas temporales 3D por fold.
+
+    PROTOCOLO ANTI-LEAKAGE:
+        El MinMaxScaler se ajusta (fit) EXCLUSIVAMENTE con los datos de entrenamiento
+        del fold actual (train_fold_df). La partición de validación (val_fold_df)
+        se transforma usando únicamente la media y escala aprendidas de entrenamiento.
+
+    Args:
+        train_fold_df: DataFrame con los motores de entrenamiento del fold.
+        val_fold_df: DataFrame con los motores de validación del fold.
+        feature_cols: Lista de columnas correspondientes a características numéricas.
+        window_size: Tamaño de la ventana deslizante (ciclos de tiempo).
+
+    Returns:
+        tuple (X_train, y_train, X_val, y_val):
+            - X_train: Tensor 3D (N_train, W, F) float32
+            - y_train: Vector 1D (N_train,) float32
+            - X_val: Tensor 3D (N_val, W, F) float32
+            - y_val: Vector 1D (N_val,) float32
+    """
+    train_scaled = train_fold_df.copy()
+    val_scaled = val_fold_df.copy()
+
+    # Ajuste anti-leakage
+    scaler = MinMaxScaler()
+    train_scaled[feature_cols] = scaler.fit_transform(train_fold_df[feature_cols])
+    val_scaled[feature_cols] = scaler.transform(val_fold_df[feature_cols])
+
+    # Ventanas temporales tridimensionales (N, W, F)
+    X_train, y_train = create_windows(train_scaled, window_size=window_size, pad_strategy="edge")
+    X_val, y_val = create_windows(val_scaled, window_size=window_size, pad_strategy="edge")
+
+    return X_train, y_train, X_val, y_val
 
 
 # Función principal
