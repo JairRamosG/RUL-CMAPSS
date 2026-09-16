@@ -25,9 +25,16 @@ import yaml
 
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.data.loader import load_cmapss
 from src.data.preprocessing import remove_constant_sensors, compute_piecewise_rul
 from src.features.engineering import compute_rolling_stats, compute_trends, create_windows
+
+
 
 # Configuracción de los loggings
 logging.basicConfig(
@@ -226,9 +233,9 @@ def scale_and_window_fold(
 # Función principal
 def main() -> None:
     """
-    Función principal
+    Función principal para ensamblar el pipeline
     """
-
+    # Estabelcer las configuraciónes del pipeline
     args = parse_args()
     logger.info(f"Iniciando el experimento con argumentos: {vars(args)}")
 
@@ -246,6 +253,31 @@ def main() -> None:
         logger.info(f"Se evaluarán todos los modelos")
     if args.dry_run:
         logger.warning(f"Entrenamiento en modo de pruebas rapido")
+
+    # Carga y preparación de los datos
+    train_df, test_df, rul_test_df = prepare_raw_data(config)
+    if args.dry_run:
+        train_df = train_df[train_df["unit_number"] <= 20].copy()
+        logger.info(f"DRY-RUN reducido a {train_df['unit_number'].nunique()}")
+
+    # Extraer las características
+    train_enriched = extract_features(train_df, config)
+
+    # Identificar características numéricas que no me sirven
+    exclude = {"unit_number", "time", "rul"}
+    feature_cols = [col for col in train_enriched.columns if col not in exclude]
+    logger.info(f"Total de características para modelado: {len(feature_cols)}")
+
+    # Prueba rápida de la función anti-leakage con una partición simple (ej. motores 1..10 val, resto train)
+    val_units = [1, 2] if args.dry_run else list(range(1, 11))
+    f_val = train_enriched[train_enriched["unit_number"].isin(val_units)]
+    f_train = train_enriched[~train_enriched["unit_number"].isin(val_units)]
+    
+    w_size = config.get("data", {}).get("window_size", 30)
+    X_tr, y_tr, X_va, y_va = scale_and_window_fold(f_train, f_val, feature_cols, window_size=w_size)
+    logger.info("Shapes generados -> X_train: %s, y_train: %s | X_val: %s, y_val: %s", 
+                X_tr.shape, y_tr.shape, X_va.shape, y_va.shape)
+
 
 if __name__ == "__main__":
     main()
