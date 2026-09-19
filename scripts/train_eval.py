@@ -46,6 +46,9 @@ from sklearn.model_selection import GroupKFold
 from src.evaluation.metrics import rmse, mae, nasa_score, profile_resource_usage
 from src.models.pytorch_wrapper import PyTorchModel
 
+import mlflow
+from src.evaluation.statistical_tests import compare_multiple_models
+
 # Configuracción de los loggings
 logging.basicConfig(
     level=logging.INFO,
@@ -508,6 +511,20 @@ def evaluate_on_test_set(
         "test_latency_ms_engine": latency_ms_per_engine,
         "y_pred_test":  y_pred
     }
+
+def init_mlflow(config:dict) -> None:
+    """
+    Inicializa la conexión y el experimento en MLflow
+
+    Args:
+        config: DIccionario con la configuración del experimento
+    """
+    tracking_uri = config.get("experiment", {}).get("mlflow_tracking_uri", "sqlite://mlflow.db")
+    exp_name = config.get("experiment", {}).get("mlflow.experiment_name", "rul_cmapss_F001")
+
+    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_experiment(exp_name)
+    logger.info(f"MLflow conectado en: {tracking_uri} (experimento: {exp_name})")
 
 # Función principal
 def main() -> None:
