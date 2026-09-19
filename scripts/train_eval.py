@@ -586,6 +586,62 @@ def log_model_run_to_MLflow(
         })
     logger.info(f"Resultados del modelo {model_name.upper()} registrados en MLflow")
 
+def log_omnibus_comparission(
+        cv_results_all: dict,
+        config: dict
+) -> None:
+    """
+    Ejecuta la parte de la inferencia estadística multimodelo (Friedman + Nemenyi) y lo 
+    registra en MLflow.
+
+    Args:
+        cv_results_all: Diccionario con los resultados de folds de CV de cada modelo
+        config: Archivo de configuración de los experimentos
+    """
+    if len(cv_results_all) < 2:
+        logger.info(f"Sólo se evaluó un modelo. Se omite la comparación estadística multimodelo")
+        return
+
+    stat_cfg = config.get("evaluation", {}).get("statistical_test", {})
+    alpha = stat_cfg.get("alpha", 0.05)
+    higher_is_better = stat_cfg.get("higher_is_better", False)
+    force_test = stat_cfg.get("force_test", None)
+
+    model_names = list(cv_results_all.keys())
+    score_list = [cv_results_all[m]["cv_rmse_scores"] for m in model_names]
+
+    logger.info(f">>> Ejecutando eficiencia estadística sobre {len(model_names)} modelos: {model_names}")
+    stat_result = compare_multiple_models(
+        *score_list,
+        alpha = alpha,
+        model_names = model_names,
+        higher_is_better = higher_is_better,
+        force_test = force_test
+    )
+
+    # Registro en MLflow como un RUN global (Omnibus)
+    with mlflow.start_run(run_name = "Omnibus_statistical_comparission"):
+        # Tags
+        mlflow.set_tags({
+            "model_name": "statistical comparission",
+            "subset": config.get('subset', 'FD001'),
+            "test_used": stat_result.test_used,
+            "is_significant": str(stat_result.significant)
+        })
+
+        mlflow.log_metrics({
+            "stat_statistic": float(stat_result.statistic),
+            "stat_p_value" : float(stat_result.p_value)
+        })
+
+        # Informe completo como un JSON
+        mlflow.log_dict(stat_result.to_dict(), "statistical_analysis.json")
+
+    logger.info(f"=== RESULTADO TEST ESTADÍSTICO {stat_result.test_used}")
+    logger.info(f"Estaddístico {stat_result.statistic} | p-value {stat_result.p_value} | Significativo: {stat_result.significant}")
+    logger.info(f"Ranking medios: {stat_result.rankings}")
+    logger.info(f"Detalle metodológico: {stat_result.reason}")
+
     
 # Función principal
 def main() -> None:
