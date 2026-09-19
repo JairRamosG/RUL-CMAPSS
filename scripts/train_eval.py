@@ -450,7 +450,7 @@ def prepare_test_data(
     """
 
     test_scaled = test_enriched_df.copy()
-    test_scaled[extract_features] = scaler.transform(test_enriched_df[feature_cols])
+    test_scaled[feature_cols] = scaler.transform(test_enriched_df[feature_cols])
 
     grouped = test_scaled.groupby('unit_number', sort = False)
     last_windows = []
@@ -500,7 +500,7 @@ def evaluate_on_test_set(
     t_mae = float(mae(y_test, y_pred))
     t_nasa = float(nasa_score(y_test, y_pred))
 
-    logger.info(f"--- TEST SET OFICIAL: RMSE {t_rmse:.2f} | MAE {t_mae:.2f} | NASA {t_nasa:.2f} | Latencia {latency_ms_per_engine:.2f} (ms/motor)")
+    logger.info(f">>> TEST SET OFICIAL: RMSE {t_rmse:.2f} | MAE {t_mae:.2f} | NASA {t_nasa:.2f} | Latencia {latency_ms_per_engine:.2f} ms")
     return {
         "test_rmse": t_rmse,
         "test_mae": t_mae,
@@ -508,7 +508,6 @@ def evaluate_on_test_set(
         "test_latency_ms_engine": latency_ms_per_engine,
         "y_pred_test":  y_pred
     }
-
 
 # Función principal
 def main() -> None:
@@ -538,26 +537,40 @@ def main() -> None:
     train_df, test_df, rul_test_df = prepare_raw_data(config)
     if args.dry_run:
         train_df = train_df[train_df["unit_number"] <= 20].copy()
+        test_df = test_df[test_df["unit_number"] <= 20].copy()
+        rul_test_df = rul_test_df.iloc[:20].copy()
         logger.info(f"DRY-RUN reducido a {train_df['unit_number'].nunique()}")
 
     # Extraer las características
     train_enriched = extract_features(train_df, config)
+    test_enriched = extract_features(test_df, config)
 
     # Identificar características numéricas que no me sirven
     exclude = {"unit_number", "time", "rul"}
     feature_cols = [col for col in train_enriched.columns if col not in exclude]
     logger.info(f"Total de características para modelado: {len(feature_cols)}")
 
+    global_scaler = MinMaxScaler()
+    global_scaler.fit(train_enriched[feature_cols])
+
+    w_size = config.get("data",{}).get("window_size", 30)
+    X_test_last = prepare_test_data(test_enriched, global_scaler, feature_cols, w_size)
+
+    rul_max = config.get("data", {}).get("rul_max", 125)
+    y_test_official = np.minimum(rul_test_df["rul"].values, rul_max).astype(np.float32)
+
     #----------------------------------------------------------------------------------------
     # Bucle de evaluación por modelo
     models_dict = {m["name"]: m.get("params", {}) for m in config.get("models", [])}
     cv_results_all = {}
+    test_results_all = {}
 
     for m_name in selected_models:
         if m_name == "associative_memory":
             continue
 
         m_params = models_dict.get(m_name, {})
+
         cv_res = evaluate_model_cv(
             model_name=m_name,
             model_params=m_params,
@@ -567,6 +580,13 @@ def main() -> None:
             dry_run=args.dry_run,
         )
         cv_results_all[m_name] = cv_res
+
+        test_res = evaluate_on_test_set(
+            model = cv_res["last_model"],
+            X_test = X_test_last,
+            y_test = y_test_official
+        )
+        test_results_all[m_name] = test_res
 
 if __name__ == "__main__":
     main()
