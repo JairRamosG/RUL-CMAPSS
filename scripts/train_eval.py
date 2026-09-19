@@ -519,8 +519,8 @@ def init_mlflow(config:dict) -> None:
     Args:
         config: DIccionario con la configuración del experimento
     """
-    tracking_uri = config.get("experiment", {}).get("mlflow_tracking_uri", "sqlite://mlflow.db")
-    exp_name = config.get("experiment", {}).get("mlflow.experiment_name", "rul_cmapss_F001")
+    tracking_uri = config.get("experiment", {}).get("mlflow_tracking_uri", "sqlite:///mlflow.db")
+    exp_name = config.get("experiment", {}).get("mlflow_experiment_name", "rul_cmapss_F001")
 
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(exp_name)
@@ -541,7 +541,7 @@ def log_model_run_to_MLflow(
         test_res: Diccionario con los resultados del test set
         config: Archivo de configuración del experimento
     """
-    models_dict = {m["name"]: m.get["params", {}] for m in config.get("models", [])}
+    models_dict = {m["name"]: m.get("params", {}) for m in config.get("models", [])}
     m_params = models_dict.get(model_name, {})
 
     with mlflow.start_run(run_name = model_name):
@@ -557,8 +557,8 @@ def log_model_run_to_MLflow(
         params_to_log = {
             "rul_max": config.get("data", {}).get("rul_max", 125),
             "window_size": config.get("data", {}).get("window_size", 30),
-            "cv_folds": config.get("data", {}).get("cv_folds", 10),
-            "random_seed": config.get("data", {}).get("random_seed", {})
+            "cv_folds": config.get("evaluation", {}).get("cv_folds", 10),
+            "random_seed": config.get("experiment", {}).get("random_seed", {})
         }
         for k, v in m_params.items():
             params_to_log[f"model_{k}"] = str(v)
@@ -582,7 +582,7 @@ def log_model_run_to_MLflow(
             "test_rmse": test_res.get("test_rmse", 0.0),
             "test_mae": test_res.get("test_mae", 0.0),
             "test_nasa_score": test_res.get("test_nasa_score", 0.0),
-            "test_latency_sec_engine": test_res.get("test_latency_get_engine", 0.0)
+            "test_latency_sec_engine": test_res.get("test_latency_sec_engine", 0.0)
         })
     logger.info(f"Resultados del modelo {model_name.upper()} registrados en MLflow")
 
@@ -630,15 +630,14 @@ def log_omnibus_comparission(
         })
 
         mlflow.log_metrics({
-            "stat_statistic": float(stat_result.statistic),
-            "stat_p_value" : float(stat_result.p_value)
+            "stat_p_value" : float(stat_result.omnibus_p_value)
         })
 
         # Informe completo como un JSON
         mlflow.log_dict(stat_result.to_dict(), "statistical_analysis.json")
 
     logger.info(f"=== RESULTADO TEST ESTADÍSTICO {stat_result.test_used}")
-    logger.info(f"Estaddístico {stat_result.statistic} | p-value {stat_result.p_value} | Significativo: {stat_result.significant}")
+    logger.info(f"Omnibus p-value {stat_result.omnibus_p_value} | Significativo: {stat_result.significant}")
     logger.info(f"Ranking medios: {stat_result.rankings}")
     logger.info(f"Detalle metodológico: {stat_result.reason}")
 
@@ -693,6 +692,8 @@ def main() -> None:
     rul_max = config.get("data", {}).get("rul_max", 125)
     y_test_official = np.minimum(rul_test_df["rul"].values, rul_max).astype(np.float32)
 
+    init_mlflow(config)
+
     #----------------------------------------------------------------------------------------
     # Bucle de evaluación por modelo
     models_dict = {m["name"]: m.get("params", {}) for m in config.get("models", [])}
@@ -705,6 +706,7 @@ def main() -> None:
 
         m_params = models_dict.get(m_name, {})
 
+        # Validación cruzada
         cv_res = evaluate_model_cv(
             model_name=m_name,
             model_params=m_params,
@@ -715,12 +717,24 @@ def main() -> None:
         )
         cv_results_all[m_name] = cv_res
 
+        # Evaluación en Test Set
         test_res = evaluate_on_test_set(
             model = cv_res["last_model"],
             X_test = X_test_last,
             y_test = y_test_official
         )
         test_results_all[m_name] = test_res
+
+        # Registrar Run en MLflow
+        log_model_run_to_MLflow(
+            model_name = m_name,
+            cv_res = cv_res,
+            test_res = test_res,
+            config = config
+        )
+
+    # Inferencia estadística multimodelo 
+    log_omnibus_comparission(cv_results_all, config)
 
 if __name__ == "__main__":
     main()
