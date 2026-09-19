@@ -526,6 +526,67 @@ def init_mlflow(config:dict) -> None:
     mlflow.set_experiment(exp_name)
     logger.info(f"MLflow conectado en: {tracking_uri} (experimento: {exp_name})")
 
+def log_model_run_to_MLflow(
+        model_name: str,
+        cv_res: dict,
+        test_res: dict,
+        config: dict
+        ) -> None:
+    """
+    Registra los resultados de un modelo individual en el MLflow.
+
+    Args:
+        model_name: Nombre del modelo
+        cv_res: Diccionario con resultados de la validación cruzada
+        test_res: Diccionario con los resultados del test set
+        config: Archivo de configuración del experimento
+    """
+    models_dict = {m["name"]: m.get["params", {}] for m in config.get("models", [])}
+    m_params = models_dict.get(model_name, {})
+
+    with mlflow.start_run(run_name = model_name):
+
+        # Tags
+        mlflow.set_tags({
+            "model_name": model_name,
+            "subset": config.get('subset', 'FD001'),
+            "stage": "baseline" 
+        })
+
+        # Parámetros globales y del modelo
+        params_to_log = {
+            "rul_max": config.get("data", {}).get("rul_max", 125),
+            "window_size": config.get("data", {}).get("window_size", 30),
+            "cv_folds": config.get("data", {}).get("cv_folds", 10),
+            "random_seed": config.get("data", {}).get("random_seed", {})
+        }
+        for k, v in m_params.items():
+            params_to_log[f"model_{k}"] = str(v)
+        mlflow.log_params(params_to_log)
+
+        # Métricas obtenidas del CV y de recursos
+        summary = cv_res.get("summary", {})
+        mlflow.log_metrics({
+            "cv_rmse_mean": summary.get("cv_rmse_mean", 0.0),
+            "cv_rmse_std": summary.get("cv_rmse_std", 0.0),
+            "cv_mae_mean": summary.get("cv_mae_mean", 0.0),
+            "cv_mae_std": summary.get("cv_mae_std", 0.0),
+            "cv_nasa_mean": summary.get("cv_nasa_mean", 0.0),
+            "train_time_mean_sec": summary.get("train_time_mean", 0.0),
+            "peak_ram_mean_mb": summary.get("peak_ram_mean", 0.0),
+            "latency_mean_sec_engine": summary.get("latency_ms_mean", 0.0)
+        })
+
+        # Métricas sobre el test oficial
+        mlflow.log_metrics({
+            "test_rmse": test_res.get("test_rmse", 0.0),
+            "test_mae": test_res.get("test_mae", 0.0),
+            "test_nasa_score": test_res.get("test_nasa_score", 0.0),
+            "test_latency_sec_engine": test_res.get("test_latency_get_engine", 0.0)
+        })
+    logger.info(f"Resultados del modelo {model_name.upper()} registrados en MLflow")
+
+    
 # Función principal
 def main() -> None:
     """
