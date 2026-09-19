@@ -426,6 +426,54 @@ def evaluate_model_cv(
         "last_model": last_trained_model
     }
 
+def prepare_test_data(
+    test_enriched_df: pd.DataFrame,
+    scaler: MinMaxScaler,
+    feature_cols: list[str],
+    window_size: int = 30,
+    ) -> np.ndarray:
+
+    """
+    Prepara el tensor de 3D del test extrayendo únicamente la última ventana de cada motor
+
+    Aplica el escalador ajustado previamente con las estadísticas de los motores de entrenamiento
+    y maneja motores con pocos ciclos aplicando un padding inicial idéntico al entrenamiento.
+
+    Args: 
+        test_enriched_df: Dataframe de pruebas con características extraidas
+        scaler: MinMax scaler ya ajustado con los datos de entrenamiento
+        feature_cols: Listacon los nombresde las características
+        window_size: Longitud de la secuencia temporal
+
+    Returns:
+        np.ndarray: Tensor 3D (N_motores_test, W, F) con la última ventana de cada motor
+    """
+
+    test_scaled = test_enriched_df.copy()
+    test_scaled[extract_features] = scaler.transform(test_enriched_df[feature_cols])
+
+    grouped = test_scaled.groupby('unit_number', sort = False)
+    last_windows = []
+
+    for unit_id, group in grouped:
+        values = group[feature_cols].values
+        T = len(values)
+
+        if T >= window_size:
+            # Se toman solamente los ultimos W ciclos observados
+            window = values[-window_size:]
+        else:
+            # Si el motor tiene menos de W ciclos, se usa un padding al inicio repitiendo el ciclo 1
+            pad_len = window_size - T
+            pad_block = np.tile(values[0:1], (pad_len, 1))
+            window = np.concatenate([pad_block, values], axis = 0)
+
+        last_windows.append(window)
+
+    X_test_last = np.array(last_windows, dtype = np.float32)
+    logger.info(f"Tensor de Test Set preparado: Shape {X_test_last.shape} (última ventana por motor)")
+    return X_test_last
+
 
 
 # Función principal
