@@ -284,15 +284,15 @@ def repeated_measures_anova(
             f"p={p_value:.4f}. {sphericity_note}."
         )
 
-    except ImportError:
-        # Fallback: one-way ANOVA if pingouin is not available
+    except (ImportError, ZeroDivisionError, ValueError, Exception) as e:
+        # Fallback: one-way ANOVA if pingouin is not available or degrees of freedom too small (e.g. N=2 in dry-run)
         stat, p_value = stats.f_oneway(*groups_arr)
         significant = bool(p_value < alpha)
         post_hoc_matrix = {
-            "error": "pingouin not installed. Install with: uv add pingouin"
+            "note": f"Pingouin RM-ANOVA fallback ({type(e).__name__}): using one-way ANOVA"
         }
         reason = (
-            f"One-way ANOVA fallback (pingouin not installed): F={stat:.4f}, "
+            f"ANOVA fallback ({type(e).__name__}): F={stat:.4f}, "
             f"p={p_value:.4f}."
         )
 
