@@ -303,7 +303,7 @@ def evaluate_model_cv(
         feature_cols : list[str],
         config: dict,
         dry_run: bool = False
-        ) -> dict:
+) -> dict:
     """
     Ejecuta la validación cruzada agrupada (GroupKFold) perfilando tiempo, RAM y métricas
 
@@ -431,7 +431,7 @@ def prepare_test_data(
     scaler: MinMaxScaler,
     feature_cols: list[str],
     window_size: int = 30,
-    ) -> np.ndarray:
+) -> np.ndarray:
 
     """
     Prepara el tensor de 3D del test extrayendo únicamente la última ventana de cada motor
@@ -474,6 +474,40 @@ def prepare_test_data(
     logger.info(f"Tensor de Test Set preparado: Shape {X_test_last.shape} (última ventana por motor)")
     return X_test_last
 
+def evaluate_on_test_set(
+        model: BaseModel,
+        X_test: np.ndarray,
+        y_test: np.ndarray
+) -> dict:
+    """
+    Evalúa un modelo entrenado contra las etiquetas reales del Teset Set oficial.
+
+    Args:
+        model: INstancia entrenada que hereda del BaseModel
+        X_test: Tensor 3D (N, W, F) con la última ventana de cada motor
+        y_test: Vector 1D (N, ) con el RUL real final de la prueba
+
+    Returns:
+        dict con las medidas de deseméño de test: 'test_rmse', 'test_mae', 'test_nasa_score' y latencia
+    """
+    with profile_resource_usage() as prof:
+        y_pred = model.predict(X_test)
+
+    inf_time_sec = prof.elapsed_time
+    latency_ms_per_engine = (inf_time_sec * 1000.0) / max(len(y_test), 1)
+
+    t_rmse = float(rmse(y_test, y_pred))
+    t_mae = float(mae(y_test, y_pred))
+    t_nasa = float(nasa_score(y_test, y_pred))
+
+    logger.info(f"--- TEST SET OFICIAL: RMSE {t_rmse:.2f} | MAE {t_mae:.2f} | NASA {t_nasa:.2f} | Latencia {latency_ms_per_engine:.2f} (ms/motor)")
+    return {
+        "test_rmse": t_rmse,
+        "test_mae": t_mae,
+        "test_nasa_score": t_nasa,
+        "test_latency_ms_engine": latency_ms_per_engine,
+        "y_pred_test":  y_pred
+    }
 
 
 # Función principal
