@@ -9,6 +9,7 @@ Uso:
     python scripts/train_eval.py --config configs/config_FD001.yaml
     python scripts/train_eval.py --config configs/config_FD001.yaml --models random_forest mlp
     python scripts/train_eval.py --config configs/config_FD001.yaml --dry-run
+    python scripts/train_eval.py --models random_forest mlp lstm --dry-run
 
 """
 
@@ -678,9 +679,9 @@ def log_omnibus_comparission(
 
     # 3. Imprimir la Tabla Resumen Consolidada en Consola
     print("\n" + "=" * 95)
-    print(f"{'RESUMEN DE PRUEBAS ESTADÍSTICAS MULTIMODELO (DISEÑO PAREADO)':^95}")
+    print(f"{'RESUMEN DE TEST ESTADÍSTICOS CON GRUPOS PAREADOS':^95}")
     print("=" * 95)
-    print(f"{'Dimensión / Métrica':<30} {'Prueba Utilizada':<24} {'Omnibus p-val':<16} {'Signif.?':<10} {'Modelo #1 (Mejor)':<15}")
+    print(f"{'Dimension':<30} {'Prueba Utilizada':<24} {'Omnibus p-val':<16} {'Significante?':<10} {'Modelo #1':<15}")
     print("-" * 95)
     for row in stat_summaries:
         print(f"{row['metric']:<30} {row['test_used']:<24} {row['p_value']:<16.4e} {row['significant']:<10} {row['best_model']:<15}")
