@@ -588,14 +588,20 @@ def log_model_run_to_MLflow(
 
 def log_omnibus_comparission(
         cv_results_all: dict,
+        test_results_all: dict,
         config: dict
 ) -> None:
     """
     Ejecuta la parte de la inferencia estadística multimodelo (Friedman + Nemenyi) y lo 
     registra en MLflow.
 
+    Itera sobre las métricas declaradas en el YAML (precision, seguridad aeronáutica, tiempo de entrenamiento
+    latencia de inferencia y consumo de RAM), registra los artefactos JSON correspondientes en un único RUN global
+    en MLflow e imprime una tabla de resúmen en la consola
+
     Args:
         cv_results_all: Diccionario con los resultados de folds de CV de cada modelo
+        test_results_all: Diccionario con los resultados del test set oficial
         config: Archivo de configuración de los experimentos
     """
     if len(cv_results_all) < 2:
@@ -607,40 +613,92 @@ def log_omnibus_comparission(
     higher_is_better = stat_cfg.get("higher_is_better", False)
     force_test = stat_cfg.get("force_test", None)
 
+    metrics_to_compare = stat_cfg.get("metrics_to_compare", [
+        "rmse",
+        "mae",
+        "nasa_score",
+        "latency_ms_engine",
+        "peak_ram_mb",
+        "train_time_sec"
+    ])
+    
     model_names = list(cv_results_all.keys())
-    score_list = [cv_results_all[m]["cv_rmse_scores"] for m in model_names]
+    
+    # Nombres para usar en la tabla de consola
+    metric_labels = {
+        "rmse": "Precisión (RMSE)",
+        "mae": "Error Absoluto (MAE)",
+        "nasa_score": "Seguridad (NASA Score)",
+        "latency_ms_engine": "Latencia de Inferencia (ms)",
+        "peak_ram_mb": "Memoria RAM Pico (MB)",
+        "train_time_sec": "Tiempo de Entrenamiento (s)",
+    }
 
-    logger.info(f">>> Ejecutando eficiencia estadística sobre {len(model_names)} modelos: {model_names}")
-    stat_result = compare_multiple_models(
-        *score_list,
-        alpha = alpha,
-        model_names = model_names,
-        higher_is_better = higher_is_better,
-        force_test = force_test
-    )
+    stat_summaries = []
 
-    # Registro en MLflow como un RUN global (Omnibus)
-    with mlflow.start_run(run_name = "Omnibus_statistical_comparission"):
-        # Tags
+    # 1. Un solo Run Omnibus en MLflow para todos los análisis
+    with mlflow.start_run(run_name="Omnibus_statistical_comparison"):
         mlflow.set_tags({
-            "model_name": "statistical comparission",
-            "subset": config.get('subset', 'FD001'),
-            "test_used": stat_result.test_used,
-            "is_significant": str(stat_result.significant)
+            "type": "statistical_comparison",
+            "subset": config.get("subset", "FD001"),
+            "num_models": str(len(model_names)),
         })
 
-        mlflow.log_metrics({
-            "stat_p_value" : float(stat_result.omnibus_p_value)
-        })
+        # 2. Bucle para evaluar cada dimensión por separado 
+        for metric_name in metrics_to_compare:
+            # Extrae el vector pareado de esa métrica a través de los 10 folds para cada modelo
+            scores_list = [
+                np.array([f[metric_name] for f in cv_results_all[m]["fold_metrics"]])
+                for m in model_names
+            ]
 
-        # Informe completo como un JSON
-        mlflow.log_dict(stat_result.to_dict(), "statistical_analysis.json")
+            logger.info(f"Ejecutando prueba estadística para: {metric_name}")
+            stat_res = compare_multiple_models(
+                *scores_list,
+                alpha=alpha,
+                model_names=model_names,
+                higher_is_better=False, 
+                force_test=force_test,
+            )
 
-    logger.info(f"=== RESULTADO TEST ESTADÍSTICO {stat_result.test_used}")
-    logger.info(f"Omnibus p-value {stat_result.omnibus_p_value} | Significativo: {stat_result.significant}")
-    logger.info(f"Ranking medios: {stat_result.rankings}")
-    logger.info(f"Detalle metodológico: {stat_result.reason}")
+            # Guarda el artefacto JSON específico en MLflow
+            mlflow.log_dict(stat_res.to_dict(), f"statistical_analysis_{metric_name}.json")
+            mlflow.log_metrics({f"stat_p_value_{metric_name}": float(stat_res.omnibus_p_value)})
 
+            # Modelo ganador (Ranking 1.0)
+            best_model = min(stat_res.rankings.items(), key=lambda x: x[1])[0]
+
+            stat_summaries.append({
+                "metric": metric_labels.get(metric_name, metric_name),
+                "test_used": stat_res.test_used,
+                "p_value": stat_res.omnibus_p_value,
+                "significant": "Sí" if stat_res.significant else "No",
+                "best_model": best_model,
+            })
+
+    # 3. Imprimir la Tabla Resumen Consolidada en Consola
+    print("\n" + "=" * 95)
+    print(f"{'RESUMEN DE PRUEBAS ESTADÍSTICAS MULTIMODELO (DISEÑO PAREADO)':^95}")
+    print("=" * 95)
+    print(f"{'Dimensión / Métrica':<30} {'Prueba Utilizada':<24} {'Omnibus p-val':<16} {'Signif.?':<10} {'Modelo #1 (Mejor)':<15}")
+    print("-" * 95)
+    for row in stat_summaries:
+        print(f"{row['metric']:<30} {row['test_used']:<24} {row['p_value']:<16.4e} {row['significant']:<10} {row['best_model']:<15}")
+    print("=" * 95)
+
+    # 4. Tabla de Métricas por Modelo
+    print(f"{'TABLA RESUMEN DE RENDIMIENTO':^95}")
+    print("-" * 95)
+    print(f"{'Modelo':<18} {'CV RMSE (μ ± σ)':<22} {'Test RMSE':<12} {'RAM Pico':<14} {'Latencia (ms)':<14}")
+    print("-" * 95)
+    for m in model_names:
+        cv_s = cv_results_all[m].get("summary", {})
+        cv_str = f"{cv_s.get('cv_rmse_mean', 0.0):.2f} ± {cv_s.get('cv_rmse_std', 0.0):.2f}"
+        t_rmse = test_results_all.get(m, {}).get("test_rmse", 0.0)
+        ram = f"{cv_s.get('peak_ram_mean', 0.0):.1f} MB"
+        lat = f"{cv_s.get('latency_ms_mean', 0.0):.2f} ms"
+        print(f"{m:<18} {cv_str:<22} {t_rmse:<12.2f} {ram:<14} {lat:<14}")
+    print("=" * 95 + "\n")
     
 # Función principal
 def main() -> None:
@@ -734,7 +792,7 @@ def main() -> None:
         )
 
     # Inferencia estadística multimodelo 
-    log_omnibus_comparission(cv_results_all, config)
+    log_omnibus_comparission(cv_results_all, test_results_all, config)
 
 if __name__ == "__main__":
     main()
