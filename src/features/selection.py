@@ -69,6 +69,8 @@ class MutualInfoSelector(BaseEstimator, TransformerMixin):
         self.support_ = np.zeros(self.n_features_in_, dtype = bool)
         self.support_[self.selected_indices_] = True
 
+        return self
+
     def transform(self, X:Any) -> np.ndarray:
         """
         Filtra y retorna únicamente las columnas seleccionadas en la mascara del fit
@@ -87,20 +89,20 @@ class MutualInfoSelector(BaseEstimator, TransformerMixin):
                             f"pero el selector fue ajustado con {self.n_features_in_}")
         return X_arr[:, self.support_]
 
-def get_support(self, indices: bool = False) -> np.ndarray:
-        """Retorna la máscara booleana o los índices de las columnas elegidas."""
-        check_is_fitted(self, ["support_", "selected_indices_"])
-        if indices:
-            return self.selected_indices_
-        return self.support_
+    def get_support(self, indices: bool = False) -> np.ndarray:
+            """Retorna la máscara booleana o los índices de las columnas elegidas."""
+            check_is_fitted(self, ["support_", "selected_indices_"])
+            if indices:
+                return self.selected_indices_
+            return self.support_
 
-def get_feature_names_out(self, input_features: Any = None) -> np.ndarray:
-    """Proyecta los nombres de las características que sobrevivieron al filtro."""
-    check_is_fitted(self, ["support_", "selected_indices_"])
-    if input_features is None:
-        return np.array([f"x{i}" for i in self.selected_indices_])
-    input_features = np.asarray(input_features)
-    return input_features[self.support_]
+    def get_feature_names_out(self, input_features: Any = None) -> np.ndarray:
+        """Proyecta los nombres de las características que sobrevivieron al filtro."""
+        check_is_fitted(self, ["support_", "selected_indices_"])
+        if input_features is None:
+            return np.array([f"x{i}" for i in self.selected_indices_])
+        input_features = np.asarray(input_features)
+        return input_features[self.support_]
 
 
 
