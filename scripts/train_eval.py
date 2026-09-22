@@ -34,6 +34,8 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.data.loader import load_cmapss
 from src.data.preprocessing import remove_constant_sensors, compute_piecewise_rul
 from src.features.engineering import compute_rolling_stats, compute_trends, create_windows
+from src.features.selection import create_feature_selector, get_selected_feature_names
+
 from src.models.base import BaseModel
 from src.models.RFModel import RFModel
 from src.models.XGBoostModel import XGBoostModel
@@ -238,10 +240,11 @@ def scale_and_window_fold(
     val_scaled[feature_cols] = scaler.transform(val_fold_df[feature_cols])
 
     # Ventanas temporales tridimensionales (N, W, F)
-    X_train, y_train = create_windows(train_scaled, window_size=window_size, pad_strategy="edge")
-    X_val, y_val = create_windows(val_scaled, window_size=window_size, pad_strategy="edge")
+    cols_to_keep = ["unit_number", "time", "rul"] + feature_cols
+    X_train, y_train = create_windows(train_scaled[cols_to_keep], window_size=window_size, pad_strategy="edge")
+    X_val, y_val = create_windows(val_scaled[cols_to_keep], window_size=window_size, pad_strategy="edge")
 
-    return X_train, y_train, X_val, y_val
+    return X_train, y_train, X_val, y_val, scaler
 
 def build_model(
         model_name = str,
@@ -300,109 +303,166 @@ def build_model(
     else:
         raise ValueError(f"Modelo no soportado: {model_name}")
 
-def evaluate_model_cv(
-        model_name: str,
-        model_params: dict,
+def prepare_cv_feature_selection(
         train_enriched_df: pd.DataFrame,
-        feature_cols : list[str],
+        feature_cols: list[str],
         config: dict,
-        dry_run: bool = False
-) -> dict:
+        n_folds: int = 10
+) -> tuple [dict[int, list[str]], dict[str, int]]:
     """
-    Ejecuta la validación cruzada agrupada (GroupKFold) perfilando tiempo, RAM y métricas
+    Aprende la selección de características dentro de cada fold cuidando la fuga de datos
+
+    Returns:
+        fold_feature_map: Siccionario {fold_index: lista_columnas_seleccionadas}
+        feature_stability: DIccionario {columna: frecuencia_de_seleccion_en_folds}
+    """
+    fs_cfg = config.get("feature_selection", {})
+    if not fs_cfg.get("enabled", False):
+        logger.info("Selección de características DESACTIVADA: usando las 102 columnas.")
+        return {f: list(feature_cols) for f in range(1, n_folds + 1)}, {c: n_folds for c in feature_cols}
+
+    logger.info(f"Precomputando selección de características ({fs_cfg.get('method', 'hybrid')}) para {n_folds} folds...")
+    gkf = GroupKFold(n_splits=n_folds)
+    groups = train_enriched_df["unit_number"].values
+
+    fold_feature_map = {}
+    feature_counts: dict[str, int] = {col: 0 for col in feature_cols}
+
+    for fold_idx, (train_idx, _) in enumerate(gkf.split(train_enriched_df, groups=groups), start=1):
+        fold_train_df = train_enriched_df.iloc[train_idx]
+
+        # Escalado local del fold para el selector
+        scaler = MinMaxScaler()
+        X_train_scaled = scaler.fit_transform(fold_train_df[feature_cols])
+        y_train = fold_train_df["rul"].values
+
+        # Ajuste del selector exclusivo en train_fold
+        selector = create_feature_selector(fs_cfg)
+        selector.fit(X_train_scaled, y_train)
+
+        selected_cols = get_selected_feature_names(selector, feature_cols)
+        fold_feature_map[fold_idx] = selected_cols
+
+        for col in selected_cols:
+            feature_counts[col] += 1
+
+        logger.info(f"  -> Fold {fold_idx:02d}: {len(selected_cols)} features seleccionadas.")
+
+    # Mostrar top 5 más estables para la consola/tesis
+    top_stable = sorted(feature_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    logger.info(f"Top 5 características más estables: {top_stable}")
+
+    return fold_feature_map, feature_counts
+
+
+def evaluate_model_cv(
+    model_name: str,
+    model_params: dict,
+    train_enriched_df: pd.DataFrame,
+    fold_feature_map: dict[int, list[str]],
+    config: dict,
+    dry_run: bool = False,
+) -> dict:
+    """Ejecuta la validación cruzada agrupada (GroupKFold) perfilando tiempo, RAM y métricas.
+
+    Garantiza el diseño pareado (blocking) utilizando las características
+    preseleccionadas de cada fold para todos los modelos por igual.
 
     Args:
-        model_name: Indentificador para los modelos
-        model_params: Hiperparámetros base para los modelos
-        train_enriched_df: Dataframe con las columnas nuevas ya calculadas
-        feature_cols: COlumnas numéricas a utilizar como entrada
-        config: DIccionario con las configuraciónes del experimento
-        dry_run: True reduce solo a 2 folds para hacer pruebas rapidas.
-    
-    Returns:
-        dict con:
-            - 'model_name': str
-            - 'fold_metrics': list[dict] con métricas individuales para cada fold
-            - 'cv_rmse_scores': np.ndarray con los RMSE de cada fold (inferencia estadística)
-            - 'summary': dict con medias y desviaciónes RMSE, MAE, NASA, tiempos y RAM
-            - 'last_model': última instancia entrenada del modelo
-    """
+        model_name: Identificador del modelo (ej. 'random_forest', 'lstm').
+        model_params: Hiperparámetros base del modelo.
+        train_enriched_df: DataFrame con características extraídas.
+        fold_feature_map: Mapeo {fold_idx: lista_features_seleccionadas}.
+        config: Diccionario con la configuración del experimento.
+        dry_run: Si es True, reduce a 2 folds para pruebas rápidas.
 
+    Returns:
+        dict con métricas agregadas, resultados por fold y última instancia entrenada.
+    """
     n_folds = 2 if dry_run else config.get("evaluation", {}).get("cv_folds", 10)
     w_size = config.get("data", {}).get("window_size", 30)
-    input_shape = (w_size, len(feature_cols))
 
-    gkf = GroupKFold(n_splits = n_folds)
+    gkf = GroupKFold(n_splits=n_folds)
     groups = train_enriched_df["unit_number"].values
 
     fold_metrics = []
     last_trained_model = None
+    last_scaler = None
+    last_features = None
 
     logger.info(f">>> Iniciando el CV de {model_name.upper()} con {n_folds} folds")
 
-    for fold_indx, (train_idx, val_idx) in enumerate(gkf.split(train_enriched_df, groups=groups), start = 1):
+    for fold_indx, (train_idx, val_idx) in enumerate(gkf.split(train_enriched_df, groups=groups), start=1):
         fold_train_df = train_enriched_df.iloc[train_idx]
         fold_val_df = train_enriched_df.iloc[val_idx]
         n_val_engines = fold_val_df["unit_number"].nunique()
 
-        # Hacer el escalamiento y ventaneo sin leakage
-        X_train, y_train, X_val, y_val = scale_and_window_fold(
+        # 1. Obtener las características seleccionadas para este fold
+        current_features = fold_feature_map[fold_indx]
+        input_shape = (w_size, len(current_features))
+
+        # 2. Escalamiento y ventaneo sin data leakage
+        X_train, y_train, X_val, y_val, fold_scaler = scale_and_window_fold(
             fold_train_df,
             fold_val_df,
-            feature_cols,
-            window_size=w_size
+            current_features,
+            window_size=w_size,
         )
 
-        # INstanciar el modelo
+        # 3. Instanciar el modelo con las dimensiones reducidas
         model = build_model(model_name, model_params, input_shape)
 
-        # Acelerar el dry-run si es pytorch
+        # Acelerar el dry-run si es PyTorch
         fit_kwargs = {}
         if isinstance(model, PyTorchModel) and dry_run:
             fit_kwargs = {"epochs": 2}
 
-        # ENtrenamiento con el perfilado de recursos
+        # 4. Entrenamiento con perfilado de recursos
         with profile_resource_usage() as train_profiler:
             model.fit(X_train, y_train, **fit_kwargs)
 
         train_time = train_profiler.elapsed_time
         train_ram = train_profiler.peak_memory_mb
 
-        # INferencia con el perfilado de latencia
+        # 5. Inferencia con perfilado de latencia
         with profile_resource_usage() as inf_profiler:
             y_pred = model.predict(X_val)
 
         inf_time = inf_profiler.elapsed_time
         latency_ms_per_engine = (inf_time * 1000.0) / max(n_val_engines, 1)
 
-        # Calculo de las métricas
+        # 6. Cálculo de métricas
         f_rmse = rmse(y_val, y_pred)
         f_mae = mae(y_val, y_pred)
         f_nasa = nasa_score(y_val, y_pred)
 
         fold_metrics.append({
-            "fold" : fold_indx,
-            "rmse" : f_rmse,
-            "mae" : f_mae,
-            "nasa_score" : f_nasa,
-            "train_time_sec" : train_time,
-            "latency_ms_engine" : latency_ms_per_engine,
-            "peak_ram_mb" : train_ram
+            "fold": fold_indx,
+            "rmse": f_rmse,
+            "mae": f_mae,
+            "nasa_score": f_nasa,
+            "train_time_sec": train_time,
+            "latency_ms_engine": latency_ms_per_engine,
+            "peak_ram_mb": train_ram,
+            "n_features": len(current_features),
         })
 
         last_trained_model = model
+        last_scaler = fold_scaler
+        last_features = current_features
+
         logger.info(
-            "Fold %d/%d - RMSE: %.2f | MAE: %.2f | NASA: %.2f | Train: %.2fs | RAM: %.1fMB",
-            fold_indx, n_folds, f_rmse, f_mae, f_nasa, train_time, train_ram
+            "Fold %d/%d (%d features) - RMSE: %.2f | MAE: %.2f | NASA: %.2f | Train: %.2fs | RAM: %.1fMB",
+            fold_indx, n_folds, len(current_features), f_rmse, f_mae, f_nasa, train_time, train_ram
         )
 
-    # Agregación estadística de cada uno de los folds
-    rmse_arr = np.array([f['rmse'] for f in fold_metrics])
-    mae_arr = np.array([f['mae'] for f in fold_metrics])
-    nasa_arr = np.array([f['nasa_score'] for f in fold_metrics])
-    train_time_arr = np.array([f['train_time_sec'] for f in fold_metrics])
-    latency_arr = np.array([f['latency_ms_engine'] for f in fold_metrics])
-    ram_arr = np.array([f['peak_ram_mb'] for f in fold_metrics])
+    # 7. Agregación estadística de los folds
+    rmse_arr = np.array([f["rmse"] for f in fold_metrics])
+    mae_arr = np.array([f["mae"] for f in fold_metrics])
+    nasa_arr = np.array([f["nasa_score"] for f in fold_metrics])
+    train_time_arr = np.array([f["train_time_sec"] for f in fold_metrics])
+    latency_arr = np.array([f["latency_ms_engine"] for f in fold_metrics])
+    ram_arr = np.array([f["peak_ram_mb"] for f in fold_metrics])
 
     summary = {
         "cv_rmse_mean": float(np.mean(rmse_arr)),
@@ -414,20 +474,23 @@ def evaluate_model_cv(
         "train_time_mean": float(np.mean(train_time_arr)),
         "latency_ms_mean": float(np.mean(latency_arr)),
         "peak_ram_mean": float(np.mean(ram_arr)),
+        "n_features_selected": len(last_features),
     }
 
     logger.info(
-        "=== Resumen CV %s: RMSE: %.2f ± %.2f | MAE: %.2f | NASA: %.2f ===",
+        "=== Resumen CV %s: RMSE: %.2f ± %.2f | MAE: %.2f | NASA: %.2f (%d features) ===",
         model_name.upper(), summary["cv_rmse_mean"], summary["cv_rmse_std"],
-        summary["cv_mae_mean"], summary["cv_nasa_mean"]
+        summary["cv_mae_mean"], summary["cv_nasa_mean"], summary["n_features_selected"]
     )
 
     return {
-        "model_name" : model_name,
+        "model_name": model_name,
         "fold_metrics": fold_metrics,
-        "cv_rmse_scores" : rmse_arr,
-        "summary" : summary,
-        "last_model": last_trained_model
+        "cv_rmse_scores": rmse_arr,
+        "summary": summary,
+        "last_model": last_trained_model,
+        "last_scaler": last_scaler,
+        "last_features": last_features,
     }
 
 def prepare_test_data(
@@ -701,12 +764,12 @@ def log_omnibus_comparission(
         print(f"{m:<18} {cv_str:<22} {t_rmse:<12.2f} {ram:<14} {lat:<14}")
     print("=" * 95 + "\n")
     
-# Función principal
+
 def main() -> None:
     """
     Función principal para ensamblar el pipeline
     """
-    # Estabelcer las configuraciónes del pipeline
+    # Establecer las configuraciones del pipeline
     args = parse_args()
     logger.info(f"Iniciando el experimento con argumentos: {vars(args)}")
 
@@ -742,11 +805,13 @@ def main() -> None:
     feature_cols = [col for col in train_enriched.columns if col not in exclude]
     logger.info(f"Total de características para modelado: {len(feature_cols)}")
 
-    global_scaler = MinMaxScaler()
-    global_scaler.fit(train_enriched[feature_cols])
+    w_size = config.get("data", {}).get("window_size", 30)
+    n_folds = 2 if args.dry_run else config.get("evaluation", {}).get("cv_folds", 10)
 
-    w_size = config.get("data",{}).get("window_size", 30)
-    X_test_last = prepare_test_data(test_enriched, global_scaler, feature_cols, w_size)
+    # Selección de características por fold (una sola vez para todos los modelos)
+    fold_feature_map, feature_stability = prepare_cv_feature_selection(
+        train_enriched, feature_cols, config, n_folds=n_folds
+    )
 
     rul_max = config.get("data", {}).get("rul_max", 125)
     y_test_official = np.minimum(rul_test_df["rul"].values, rul_max).astype(np.float32)
@@ -770,38 +835,37 @@ def main() -> None:
             model_name=m_name,
             model_params=m_params,
             train_enriched_df=train_enriched,
-            feature_cols=feature_cols,
+            fold_feature_map=fold_feature_map,
             config=config,
             dry_run=args.dry_run,
         )
         cv_results_all[m_name] = cv_res
 
-        # Evaluación en Test Set
+        # Test set con el MISMO escalador y features del último fold
+        X_test_last = prepare_test_data(
+            test_enriched, cv_res["last_scaler"], cv_res["last_features"], w_size
+        )
         test_res = evaluate_on_test_set(
-            model = cv_res["last_model"],
-            X_test = X_test_last,
-            y_test = y_test_official
+            model=cv_res["last_model"],
+            X_test=X_test_last,
+            y_test=y_test_official,
         )
         test_results_all[m_name] = test_res
 
         # Registrar Run en MLflow
         log_model_run_to_MLflow(
-            model_name = m_name,
-            cv_res = cv_res,
-            test_res = test_res,
-            config = config
+            model_name=m_name,
+            cv_res=cv_res,
+            test_res=test_res,
+            config=config,
         )
 
-    # Inferencia estadística multimodelo 
+    # Inferencia estadística multimodelo
     log_omnibus_comparission(cv_results_all, test_results_all, config)
+
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
 
 
 
