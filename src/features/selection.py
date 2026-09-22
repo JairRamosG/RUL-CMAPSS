@@ -11,9 +11,12 @@ from typing import Any
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_selection import mutual_info_regression
+from sklearn.utils.validation import check_array, check_is_fitted
+
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.utils.validation import check_array, check_is_fitted
+
+from sklearn.pipeline import Pipeline
 
 class MutualInfoSelector(BaseEstimator, TransformerMixin):
     """
@@ -220,6 +223,95 @@ class RFFeatureSelector(BaseEstimator, TransformerMixin):
         return input_features[self.support_]
         
 
+def create_feature_selector(config: dict[str, Any] | None = None) -> Pipeline | BaseEstimator:
+    """Función para instanciar el selector de características según el YAML.
+
+    Soporta composición fluida mediante Pipeline de Scikit-learn o passthrough
+    neutro en caso de estar desactivado.
+
+    Args:
+        config: Diccionario con la configuración del bloque 'feature_selection'.
+
+    Returns:
+        Pipeline o BaseEstimator compatible con fit y transform.
+    """
+
+    if config is None or not config.get("enabled", True):
+        return FunctionTransformer()    
+
+    method = config.get("method", "hybrid").lower()
+
+    if method == "mutual_info":
+        mi_cfg = config.get("mutual_info", {})
+        return MutualInfoSelector(
+            percentile=mi_cfg.get("percentile", 60),
+            random_state=mi_cfg.get("random_state", 42)
+        )
+
+    elif method == "rf_importance":
+        rf_cfg = config.get("rf_importance", {})
+        return RFFeatureSelector(
+            n_features_to_select =  rf_cfg.get("n_features_to_select", 25),
+            n_estimators = rf_cfg.get("n_estimators", 100),
+            max_depth = rf_cfg.get("max_depth", 15),
+            random_state = rf_cfg.get("random_state", 42),
+            n_jobs = rf_cfg.get("n_jobs", -1)
+        )
+
+    elif method == "hybrid":
+        mi_cfg = config.get("mutual_info", {})
+        rf_cfg = config.get("rf_importance", {})
+
+        return Pipeline([
+        (
+            "filter_mi",
+            MutualInfoSelector(
+                percentile=mi_cfg.get("percentile", 60),
+                            random_state=mi_cfg.get("random_state", 42)
+            )
+        ),
+
+        (
+            "filter_rf",
+            RFFeatureSelector(
+                n_features_to_select =  rf_cfg.get("n_features_to_select", 25),
+                n_estimators = rf_cfg.get("n_estimators", 100),
+                max_depth = rf_cfg.get("max_depth", 15),
+                random_state = rf_cfg.get("random_state", 42),
+                n_jobs = rf_cfg.get("n_jobs", -1)
+            )
+        )
+        ])
+
+    else:
+        raise ValueError(f"Método de selección no soportado: {method}",
+                        f"Opciones válidas: MI, RF, Hybrid")
+
+def get_selected_feature_names(
+    selector: Pipeline | BaseEstimator,
+    input_features: list[str],
+) -> list[str]:
+    """Extrae secuencialmente los nombres de las columnas que sobrevivieron al filtrado.
+
+    Maneja tanto transformadores individuales como Pipelines de múltiples pasos.
+
+    Args:
+        selector: Instancia ajustada (fitted) de un selector o Pipeline.
+        input_features: Lista original de nombres de características.
+
+    Returns:
+        Lista de nombres de las características seleccionadas finales.
+    """
+    current_names = list(input_features)
+
+    if isinstance(selector, Pipeline):
+        for _, step in selector.named_steps.items():
+            if hasattr(step, "get_feature_names_out"):
+                current_names = list(step.get_feature_names_out(current_names))
+    elif hasattr(selector, "get_feature_names_out"):
+        current_names = list(selector.get_feature_names_out(current_names))
+
+    return current_names
 
 
 
