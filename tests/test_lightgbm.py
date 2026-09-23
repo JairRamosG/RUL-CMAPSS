@@ -1,23 +1,7 @@
 """Tests for LightGBMModel."""
-import pytest
 import numpy as np
 from src.models.LightGBMModel import LightGBMModel
 from src.models.sklearn_wrapper import SKLearnModel
-
-
-@pytest.fixture
-def X_2d():
-    return np.random.randn(100, 5)
-
-
-@pytest.fixture
-def X_3d():
-    return np.random.randn(100, 10, 5)
-
-
-@pytest.fixture
-def y():
-    return np.random.randn(100)
 
 
 class TestLightGBMModel:

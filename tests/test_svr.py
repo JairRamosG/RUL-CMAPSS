@@ -1,23 +1,10 @@
 """Tests for SVRModel."""
-import pytest
 import numpy as np
 from src.models.SVRModel import SVRModel
 
 
 class TestSVRModel:
     """Tests for SVRModel."""
-
-    @pytest.fixture
-    def X_2d(self):
-        return np.random.randn(100, 5)
-
-    @pytest.fixture
-    def X_3d(self):
-        return np.random.randn(100, 10, 5)
-
-    @pytest.fixture
-    def y(self):
-        return np.random.randn(100)
 
     def test_default_params(self):
         """SVRModel has correct default parameters."""

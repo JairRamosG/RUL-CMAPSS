@@ -1,5 +1,4 @@
 """Tests for SKLearnModel adapter."""
-import pytest
 import numpy as np
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
@@ -8,21 +7,6 @@ from src.models.sklearn_wrapper import SKLearnModel
 
 class TestSKLearnModel:
     """Tests for SKLearnModel adapter."""
-
-    @pytest.fixture
-    def X_2d(self):
-        """2D feature array (N, F)."""
-        return np.random.randn(100, 5)
-
-    @pytest.fixture
-    def X_3d(self):
-        """3D feature array (N, W, F)."""
-        return np.random.randn(100, 10, 5)
-
-    @pytest.fixture
-    def y(self):
-        """Target RUL array."""
-        return np.random.randn(100)
 
     def test_fit_returns_dict(self, X_2d, y):
         """fit() returns dict with required keys."""
