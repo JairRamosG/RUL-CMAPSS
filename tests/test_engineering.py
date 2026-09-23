@@ -252,8 +252,8 @@ class TestComputeRollingStats:
         df = _make_df({1: 3}, n_features=1)
         result = compute_rolling_stats(df, window_size=3)
 
-        # t=1: std(101) = NaN (single value, ddof=1)
-        assert np.isnan(result["sensor_1_std"].iloc[0])
+        # t=1: std of a single value is NaN (ddof=1), filled with 0.0 by design
+        assert result["sensor_1_std"].iloc[0] == pytest.approx(0.0)
         # t=2: std(101, 102) = 0.7071...
         assert result["sensor_1_std"].iloc[1] == pytest.approx(0.7071, abs=0.01)
         # t=3: std(101, 102, 103) = 1.0
@@ -323,7 +323,7 @@ class TestComputeRollingStats:
     def test_empty_stat_types_raises(self):
         """ValueError when stat_types is empty."""
         df = _make_df({1: 10})
-        with pytest.raises(ValueError, match="No existen etadísticos para las variables Time Delay Embedding"):
+        with pytest.raises(ValueError, match="No existen estadísticos para las variables Time Delay Embedding"):
             compute_rolling_stats(df, stat_types=[])
 
     def test_no_feature_columns_raises(self):
