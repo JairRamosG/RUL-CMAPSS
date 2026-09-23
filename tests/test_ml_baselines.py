@@ -1,49 +1,33 @@
 """Tests for ML baseline models: RandomForest, XGBoost, LightGBM."""
-import pytest
 import numpy as np
-from src.models.RandomForestModel import RandomForestModel
+from src.models.RFModel import RFModel
 from src.models.XGBoostModel import XGBoostModel
 from src.models.LightGBMModel import LightGBMModel
 from src.models.sklearn_wrapper import SKLearnModel
 
 
-@pytest.fixture
-def X_2d():
-    return np.random.randn(100, 5)
-
-
-@pytest.fixture
-def X_3d():
-    return np.random.randn(100, 10, 5)
-
-
-@pytest.fixture
-def y():
-    return np.random.randn(100)
-
-
 # =============================================================================
-# RandomForestModel
+# RFModel
 # =============================================================================
-class TestRandomForestModel:
-    """Tests for RandomForestModel."""
+class TestRFModel:
+    """Tests for RFModel."""
 
     def test_default_params(self):
-        model = RandomForestModel()
+        model = RFModel()
         params = model.get_params()
 
         assert params["n_estimators"] == 100
         assert params["max_depth"] is None
 
     def test_custom_params(self):
-        model = RandomForestModel(n_estimators=50, max_depth=10)
+        model = RFModel(n_estimators=50, max_depth=10)
         params = model.get_params()
 
         assert params["n_estimators"] == 50
         assert params["max_depth"] == 10
 
     def test_fit_returns_dict(self, X_2d, y):
-        model = RandomForestModel(n_estimators=10)
+        model = RFModel(n_estimators=10)
         result = model.fit(X_2d, y)
 
         assert isinstance(result, dict)
@@ -51,7 +35,7 @@ class TestRandomForestModel:
         assert "epoch_trained" in result
 
     def test_predict_returns_array(self, X_2d, y):
-        model = RandomForestModel(n_estimators=10)
+        model = RFModel(n_estimators=10)
         model.fit(X_2d, y)
         preds = model.predict(X_2d)
 
@@ -59,14 +43,14 @@ class TestRandomForestModel:
         assert preds.shape == (100,)
 
     def test_fit_predict_3d(self, X_3d, y):
-        model = RandomForestModel(n_estimators=10)
+        model = RFModel(n_estimators=10)
         model.fit(X_3d, y)
         preds = model.predict(X_3d)
 
         assert preds.shape == (100,)
 
     def test_inherits_sklearn(self):
-        model = RandomForestModel()
+        model = RFModel()
         assert isinstance(model, SKLearnModel)
 
 
