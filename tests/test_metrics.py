@@ -1,7 +1,16 @@
 """Tests for evaluation metrics."""
+import time
 import pytest
 import numpy as np
-from src.evaluation.metrics import rmse, mae, nasa_score
+from src.evaluation.metrics import (
+    rmse,
+    mae,
+    nasa_score,
+    ResourceProfiler,
+    profile_resource_usage,
+    get_system_info,
+    profile_function,
+)
 
 
 class TestRMSE:
@@ -168,3 +177,106 @@ class TestNASAScore:
 
         result = nasa_score(y_true, y_pred)
         assert np.isscalar(result) or result.ndim == 0
+
+
+class TestResourceProfiler:
+    """Tests for ResourceProfiler context manager."""
+
+    def test_measures_elapsed_time(self):
+        """Elapsed time covers the profiled block."""
+        with ResourceProfiler() as profiler:
+            time.sleep(0.01)
+
+        assert profiler.elapsed_time >= 0.01
+
+    def test_peak_memory_positive(self):
+        """Peak memory usage is a positive value in MB."""
+        with ResourceProfiler() as profiler:
+            _ = [0.0] * 100_000
+
+        assert profiler.peak_memory_mb > 0
+
+    def test_initial_values(self):
+        """Profiler starts with zeroed metrics before entering the context."""
+        profiler = ResourceProfiler()
+
+        assert profiler.elapsed_time == 0.0
+        assert profiler.peak_memory_mb == 0.0
+
+    def test_to_dict_returns_metrics(self):
+        """to_dict exposes elapsed_time and peak_memory_mb keys."""
+        with ResourceProfiler() as profiler:
+            pass
+
+        result = profiler.to_dict()
+
+        assert set(result.keys()) == {"elapsed_time", "peak_memory_mb"}
+        assert result["elapsed_time"] >= 0.0
+        assert result["peak_memory_mb"] > 0
+
+    def test_exception_does_not_swallow(self):
+        """Profiler does not suppress exceptions raised in the block."""
+        with pytest.raises(ZeroDivisionError):
+            with ResourceProfiler():
+                1 / 0
+
+
+class TestProfileResourceUsage:
+    """Tests for profile_resource_usage context manager."""
+
+    def test_yields_profiler_with_results(self):
+        """Yields a ResourceProfiler populated after the block exits."""
+        with profile_resource_usage() as profiler:
+            time.sleep(0.005)
+
+        assert isinstance(profiler, ResourceProfiler)
+        assert profiler.elapsed_time >= 0.005
+        assert profiler.peak_memory_mb > 0
+
+
+class TestGetSystemInfo:
+    """Tests for get_system_info function."""
+
+    def test_returns_expected_structure(self):
+        """System info contains cpu, memory and platform sections."""
+        info = get_system_info()
+
+        assert "cpu" in info
+        assert "memory" in info
+        assert "platform" in info
+
+    def test_cpu_and_memory_values(self):
+        """CPU count and total memory are positive."""
+        info = get_system_info()
+
+        assert info["cpu"]["cpu_count"] >= 1
+        assert info["cpu"]["cpu_count_logical"] >= 1
+        assert info["memory"]["total_gb"] > 0
+        assert 0 < info["memory"]["percent_used"] <= 100
+
+
+class TestProfileFunction:
+    """Tests for profile_function decorator."""
+
+    def test_returns_result_and_profiler(self):
+        """Decorated function returns (result, profiler) tuple."""
+
+        @profile_function
+        def add(a, b):
+            return a + b
+
+        result, profiler = add(2, 3)
+
+        assert result == 5
+        assert isinstance(profiler, ResourceProfiler)
+        assert profiler.elapsed_time >= 0.0
+
+    def test_preserves_function_metadata(self):
+        """Decorator preserves the wrapped function name."""
+
+        @profile_function
+        def sample():
+            """Docstring here."""
+
+        assert sample.__name__ == "sample"
+        assert sample.__doc__ == "Docstring here."

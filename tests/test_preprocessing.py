@@ -89,6 +89,12 @@ class TestCreateGroups:
             mask = df["unit_number"] == unit
             assert len(np.unique(result[mask])) == 1
 
+    def test_missing_unit_number_raises(self):
+        """ValueError when unit_number column is missing."""
+        df = pd.DataFrame({"time": [1, 2]})
+        with pytest.raises(ValueError, match="unit_number"):
+            create_groups(df)
+
 
 class TestRemoveConstantSensors:
     """Tests for remove_constant_sensors function."""
@@ -405,3 +411,25 @@ class TestFullPreprocessing:
         """Test that missing config file raises FileNotFoundError."""
         with pytest.raises(FileNotFoundError):
             full_preprocessing(config_path="nonexistent.yml")
+
+    def test_subset_config_mismatch_raises(self):
+        """Test that subset mismatch with config raises ValueError."""
+        with pytest.raises(ValueError, match="Subset no encontrado"):
+            full_preprocessing("FD002", "configs/config_FD001.yaml")
+
+    def test_main_demo_block_runs(self, monkeypatch):
+        """Executing the module as a script runs the bundled demo pipeline."""
+        import builtins
+        import runpy
+        from pathlib import Path
+
+        real_open = builtins.open
+
+        def open_redirect(path, *args, **kwargs):
+            if str(path) == "configs/config_FD001.yml":
+                path = "configs/config_FD001.yaml"
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "open", open_redirect)
+        module_path = Path("src/data/preprocessing.py").resolve()
+        runpy.run_path(str(module_path), run_name="__main__")
