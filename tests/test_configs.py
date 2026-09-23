@@ -13,10 +13,10 @@ from typing import Dict, Any
 
 # Configuration files to test
 CONFIG_FILES = [
-    "configs/config_FD001.yml",
-    "configs/config_FD002.yml",
-    "configs/config_FD003.yml",
-    "configs/config_FD004.yml",
+    "configs/config_FD001.yaml",
+    "configs/config_FD002.yaml",
+    "configs/config_FD003.yaml",
+    "configs/config_FD004.yaml",
 ]
 
 # Required fields structure
@@ -28,7 +28,7 @@ REQUIRED_EXPERIMENT = ["random_seed", "n_jobs", "verbose", "mlflow_tracking_uri"
 REQUIRED_PROFILING = ["enabled", "metrics"]
 
 # Valid model names
-VALID_MODELS = ["associative_memory", "random_forest", "xgboost", "svr", "mlp", "cnn1d", "lstm"]
+VALID_MODELS = ["associative_memory", "random_forest", "xgboost", "lightgbm", "svr", "mlp", "cnn1d", "lstm"]
 
 # Required profiling metrics
 REQUIRED_PROFILING_METRICS = ["train_time", "inference_latency", "ram_train", "ram_inference"]
@@ -264,8 +264,8 @@ class TestModels:
     """Tests for model configuration."""
     
     @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_all_seven_models_present(self, config_file: str):
-        """Test that all 7 models are present."""
+    def test_all_models_present(self, config_file: str):
+        """Test that all 8 models are present."""
         with open(config_file, "r") as f:
             config = yaml.safe_load(f)
         
@@ -276,12 +276,12 @@ class TestModels:
     
     @pytest.mark.parametrize("config_file", CONFIG_FILES)
     def test_models_count(self, config_file: str):
-        """Test that exactly 7 models are present."""
+        """Test that exactly 8 models are present."""
         with open(config_file, "r") as f:
             config = yaml.safe_load(f)
         
         models = config.get("models", [])
-        assert len(models) == 7, f"Expected 7 models, got {len(models)}"
+        assert len(models) == 8, f"Expected 8 models, got {len(models)}"
     
     @pytest.mark.parametrize("config_file", CONFIG_FILES)
     def test_search_space_defined(self, config_file: str):
