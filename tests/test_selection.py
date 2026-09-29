@@ -111,6 +111,35 @@ class TestMutualInfoSelector:
         assert X_train_trans.shape == (100, 5)
         assert X_val_trans.shape == (50, 5)
 
+    def test_threshold_selection(self, synthetic_regression_data):
+        """threshold keeps exactly the features whose MI score is >= threshold."""
+        X, y, _ = synthetic_regression_data
+        selector = MutualInfoSelector(threshold=0.2, random_state=42)
+        X_trans = selector.fit_transform(X, y)
+
+        expected_mask = selector.scores_ >= 0.2
+        assert np.array_equal(selector.support_, expected_mask)
+        assert X_trans.shape == (150, int(expected_mask.sum()))
+        assert 0 < X_trans.shape[1] < 10
+
+    def test_negative_threshold_raises(self, synthetic_regression_data):
+        """A threshold outside the valid MI range (negative) must raise ValueError."""
+        X, y, _ = synthetic_regression_data
+        selector = MutualInfoSelector(threshold=-0.1)
+
+        with pytest.raises(ValueError, match="threshold"):
+            selector.fit(X, y)
+
+    def test_threshold_takes_precedence_over_percentile(self, synthetic_regression_data):
+        """When both are provided, threshold decides and percentile is ignored."""
+        X, y, _ = synthetic_regression_data
+        selector = MutualInfoSelector(percentile=50, threshold=0.0, random_state=42)
+        X_trans = selector.fit_transform(X, y)
+
+        # All MI scores are >= 0.0, so every feature survives despite percentile=50
+        assert X_trans.shape[1] == 10
+        assert len(selector.selected_indices_) == 10
+
 
 class TestRFFeatureSelector:
     """Unit tests for RFFeatureSelector embedded transformer."""
@@ -218,3 +247,19 @@ class TestPipelineCompositionAndFactory:
         sel_rf = create_feature_selector(cfg_rf)
         assert isinstance(sel_rf, RFFeatureSelector)
         assert sel_rf.fit_transform(X, y).shape == (150, 2)
+
+    def test_factory_reads_optional_threshold_from_config(self, synthetic_regression_data):
+        """Factory forwards mutual_info.threshold from YAML; absent key keeps None."""
+        X, y, _ = synthetic_regression_data
+
+        cfg = {"enabled": True, "method": "mutual_info", "mutual_info": {"threshold": 0.2}}
+        sel_threshold = create_feature_selector(cfg)
+        assert isinstance(sel_threshold, MutualInfoSelector)
+        assert sel_threshold.threshold == 0.2
+        X_trans = sel_threshold.fit_transform(X, y)
+        assert X_trans.shape[1] == int(np.sum(sel_threshold.scores_ >= 0.2))
+
+        # Backward compatible: configs without threshold still use percentile
+        cfg_legacy = {"enabled": True, "method": "mutual_info", "mutual_info": {"percentile": 50}}
+        sel_legacy = create_feature_selector(cfg_legacy)
+        assert sel_legacy.threshold is None

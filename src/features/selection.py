@@ -19,20 +19,29 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
 
 class MutualInfoSelector(BaseEstimator, TransformerMixin):
-    """
-    Selector de características basado en Información mútua univariada
+    """Univariate feature selector based on Mutual Information.
 
-    Calcula la dependencia no lineal entre cada característica y el target RUL
-    usando mutual_info_regression y conserva el percentil superior configurado
+    Computes the non-linear dependence between each feature and the RUL target
+    with ``mutual_info_regression`` and keeps either the top ``percentile`` of
+    features or every feature whose score reaches ``threshold``.
 
     Args:
-        percentile: Porcentaje de características a conservar
-        random_state: Semilla aleatoria de reproducibilidad
+        percentile: Percentage of features to keep when ``threshold`` is None.
+        random_state: Random seed for reproducibility.
+        threshold: Minimum mutual information score a feature needs to be kept.
+            When it is not None it takes precedence over ``percentile``.
+            Must be non-negative because MI scores are non-negative.
     """
 
-    def __init__(self, percentile: int = 60, random_state: int = 42) -> None:
+    def __init__(
+        self,
+        percentile: int = 60,
+        random_state: int = 42,
+        threshold: float | None = None,
+    ) -> None:
         self.percentile = percentile
         self.random_state = random_state
+        self.threshold = threshold
 
     def fit(self, X: Any, y: Any = None) -> "MutualInfoSelector":
         """
@@ -44,6 +53,7 @@ class MutualInfoSelector(BaseEstimator, TransformerMixin):
 
         Raises:
             ValueError: Si y es un None
+            ValueError: Si threshold no es None y su valor es negativo
         """
 
         if y is None:
@@ -61,13 +71,23 @@ class MutualInfoSelector(BaseEstimator, TransformerMixin):
             random_state = self.random_state
         ) 
 
-        # Determinar cuántas características conservar según el percentil
-        k = max(1, int(np.round(self.n_features_in_ * ((self.percentile / 100.0)))))
-        k = min(k, self.n_features_in_)
+        if self.threshold is not None:
+            # Selection by absolute MI score: threshold wins over percentile
+            if self.threshold < 0:
+                raise ValueError(
+                    f"Invalid threshold: {self.threshold}. "
+                    "threshold must be a non-negative float because MI scores are >= 0."
+                )
+            selected_mask = self.scores_ >= self.threshold
+            self.selected_indices_ = np.flatnonzero(selected_mask)
+        else:
+            # Determinar cuántas características conservar según el percentil
+            k = max(1, int(np.round(self.n_features_in_ * ((self.percentile / 100.0)))))
+            k = min(k, self.n_features_in_)
 
-        # Obtener los índices de los mayores puntajes
-        top_indices = np.argsort(self.scores_)[-k:]
-        self.selected_indices_ = np.sort(top_indices)
+            # Obtener los índices de los mayores puntajes
+            top_indices = np.argsort(self.scores_)[-k:]
+            self.selected_indices_ = np.sort(top_indices)
 
         # Crear una máscara booleana para identificarlos
         self.support_ = np.zeros(self.n_features_in_, dtype = bool)
@@ -245,7 +265,8 @@ def create_feature_selector(config: dict[str, Any] | None = None) -> Pipeline | 
         mi_cfg = config.get("mutual_info", {})
         return MutualInfoSelector(
             percentile=mi_cfg.get("percentile", 60),
-            random_state=mi_cfg.get("random_state", 42)
+            random_state=mi_cfg.get("random_state", 42),
+            threshold=mi_cfg.get("threshold"),
         )
 
     elif method == "rf_importance":
@@ -267,7 +288,8 @@ def create_feature_selector(config: dict[str, Any] | None = None) -> Pipeline | 
             "filter_mi",
             MutualInfoSelector(
                 percentile=mi_cfg.get("percentile", 60),
-                            random_state=mi_cfg.get("random_state", 42)
+                            random_state=mi_cfg.get("random_state", 42),
+                            threshold=mi_cfg.get("threshold"),
             )
         ),
 
