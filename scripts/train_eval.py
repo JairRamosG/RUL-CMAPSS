@@ -46,6 +46,7 @@ from src.models.CNN1DModel import CNN1DModel
 from src.models.LSTMModel import LSTMModel
 
 from sklearn.model_selection import GroupKFold
+from sklearn.base import BaseEstimator
 from src.evaluation.metrics import rmse, mae, nasa_score, profile_resource_usage
 from src.models.pytorch_wrapper import PyTorchModel
 
@@ -210,26 +211,27 @@ def scale_and_window_fold(
     val_fold_df: pd.DataFrame,
     feature_cols: list[str],
     window_size: int = 30,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Escala las características y estructura en ventanas temporales 3D por fold.
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, MinMaxScaler]:
+    """Scale features and build the 3D sliding windows for a single CV fold.
 
-    PROTOCOLO ANTI-LEAKAGE:
-        El MinMaxScaler se ajusta (fit) EXCLUSIVAMENTE con los datos de entrenamiento
-        del fold actual (train_fold_df). La partición de validación (val_fold_df)
-        se transforma usando únicamente la media y escala aprendidas de entrenamiento.
+    ANTI-LEAKAGE PROTOCOL:
+        The MinMaxScaler is fitted EXCLUSIVELY on the training partition of the
+        current fold (train_fold_df). The validation partition (val_fold_df) is
+        transformed using only the mean and scale learned from training.
 
     Args:
-        train_fold_df: DataFrame con los motores de entrenamiento del fold.
-        val_fold_df: DataFrame con los motores de validación del fold.
-        feature_cols: Lista de columnas correspondientes a características numéricas.
-        window_size: Tamaño de la ventana deslizante (ciclos de tiempo).
+        train_fold_df: DataFrame with the training engines of the fold.
+        val_fold_df: DataFrame with the validation engines of the fold.
+        feature_cols: List with the names of the numeric feature columns.
+        window_size: Sliding window size (time cycles).
 
     Returns:
-        tuple (X_train, y_train, X_val, y_val):
-            - X_train: Tensor 3D (N_train, W, F) float32
-            - y_train: Vector 1D (N_train,) float32
-            - X_val: Tensor 3D (N_val, W, F) float32
-            - y_val: Vector 1D (N_val,) float32
+        tuple (X_train, y_train, X_val, y_val, scaler):
+            - X_train: 3D tensor (N_train, W, F) float32
+            - y_train: 1D vector (N_train,) float32
+            - X_val: 3D tensor (N_val, W, F) float32
+            - y_val: 1D vector (N_val,) float32
+            - scaler: MinMaxScaler fitted on train_fold_df only (kept for traceability)
     """
     train_scaled = train_fold_df.copy()
     val_scaled = val_fold_df.copy()
@@ -377,7 +379,10 @@ def evaluate_model_cv(
         dry_run: Si es True, reduce a 2 folds para pruebas rápidas.
 
     Returns:
-        dict con métricas agregadas, resultados por fold y última instancia entrenada.
+        dict con métricas agregadas, resultados por fold y la última instancia
+        entrenada (last_model/last_scaler/last_features). Estos últimos quedan
+        sólo para trazabilidad: el test set se evalúa con el pipeline global
+        ajustado con el 100% del train (ver prepare_global_datasets).
     """
     n_folds = 2 if dry_run else config.get("evaluation", {}).get("cv_folds", 10)
     w_size = config.get("data", {}).get("window_size", 30)
@@ -493,33 +498,66 @@ def evaluate_model_cv(
         "last_features": last_features,
     }
 
-def prepare_test_data(
-    test_enriched_df: pd.DataFrame,
+def scale_and_select_features(
+    df: pd.DataFrame,
     scaler: MinMaxScaler,
+    selector: BaseEstimator,
+    feature_cols: list[str],
+) -> pd.DataFrame:
+    """
+    Applies a globally fitted scaler and feature selector to a dataset.
+
+    ANTI-LEAKAGE PROTOCOL:
+        Both artifacts must be fitted on 100% of the training set beforehand;
+        here they are only used in transform mode, so the test set is never fitted.
+
+    Args:
+        df: Enriched DataFrame with 'unit_number', 'time' (and 'rul' for train).
+        scaler: MinMaxScaler fitted on the full training set.
+        selector: Fitted selector, or passthrough transformer when FS is disabled.
+        feature_cols: Original names of the feature columns fed to the scaler.
+
+    Returns:
+        DataFrame with the identifier columns plus the selected feature columns,
+        scaled and reduced in the same order for every dataset.
+    """
+    selected_names = get_selected_feature_names(selector, feature_cols)
+    X_scaled = scaler.transform(df[feature_cols])
+    X_selected = selector.transform(X_scaled)
+
+    prepared = df[["unit_number", "time"]].copy()
+    if "rul" in df.columns:
+        prepared["rul"] = df["rul"].to_numpy()
+    for idx, name in enumerate(selected_names):
+        prepared[name] = X_selected[:, idx]
+
+    return prepared
+
+def prepare_test_data(
+    test_prepared_df: pd.DataFrame,
     feature_cols: list[str],
     window_size: int = 30,
 ) -> np.ndarray:
 
     """
-    Prepara el tensor de 3D del test extrayendo únicamente la última ventana de cada motor
+    Builds the 3D test tensor keeping only the last window of each engine.
 
-    Aplica el escalador ajustado previamente con las estadísticas de los motores de entrenamiento
-    y maneja motores con pocos ciclos aplicando un padding inicial idéntico al entrenamiento.
+    The input frame must already be scaled and selected with the artifacts fitted
+    on the full training set (see prepare_global_datasets / scale_and_select_features),
+    so this helper only performs the windowing. Engines with fewer cycles than
+    window_size get the same initial padding used during training.
 
     Args: 
-        test_enriched_df: Dataframe de pruebas con características extraidas
-        scaler: MinMax scaler ya ajustado con los datos de entrenamiento
-        feature_cols: Listacon los nombresde las características
-        window_size: Longitud de la secuencia temporal
+        test_prepared_df: Test DataFrame already scaled and feature-selected,
+            containing 'unit_number' and the selected feature columns.
+        feature_cols: Names of the selected feature columns, in training order.
+        window_size: Length of the temporal sequence.
 
     Returns:
         np.ndarray: Tensor 3D (N_motores_test, W, F) con la última ventana de cada motor
     """
 
-    test_scaled = test_enriched_df.copy()
-    test_scaled[feature_cols] = scaler.transform(test_enriched_df[feature_cols])
-
-    grouped = test_scaled.groupby('unit_number', sort = False)
+    grouped = test_prepared_df.groupby('unit_number', sort = False)
     last_windows = []
 
     for unit_id, group in grouped:
@@ -540,6 +578,74 @@ def prepare_test_data(
     X_test_last = np.array(last_windows, dtype = np.float32)
     logger.info(f"Tensor de Test Set preparado: Shape {X_test_last.shape} (última ventana por motor)")
     return X_test_last
+
+def prepare_global_datasets(
+    train_enriched_df: pd.DataFrame,
+    test_enriched_df: pd.DataFrame,
+    feature_cols: list[str],
+    config: dict,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str]]:
+    """
+    Fits the scaler and the selector on 100% of train and builds the final tensors.
+
+    ANTI-LEAKAGE PROTOCOL:
+        The scaler and the feature selector are fitted once on the complete
+        training set and then reused to transform both train and test. The test
+        set is only ever transformed, never fitted. The resulting tensors are
+        shared by every model, preserving the paired (blocking) design.
+
+    Args:
+        train_enriched_df: Training DataFrame with all engineered features.
+        test_enriched_df: Test DataFrame with all engineered features.
+        feature_cols: Original feature column names.
+        config: Dictionary with the experiment configuration.
+
+    Returns:
+        tuple (X_train_full, y_train_full, X_test_final, global_features):
+            - X_train_full: 3D tensor (N_train, W, F_global) float32
+            - y_train_full: 1D vector (N_train,) float32
+            - X_test_final: 3D tensor (N_engines_test, W, F_global) float32
+            - global_features: Names of the features selected on the full train
+    """
+    w_size = config.get("data", {}).get("window_size", 30)
+    fs_cfg = config.get("feature_selection", {})
+    fs_enabled = fs_cfg.get("enabled", False)
+
+    # 1. Global scaler fitted on 100% of the training set
+    global_scaler = MinMaxScaler()
+    global_scaler.fit(train_enriched_df[feature_cols])
+
+    # 2. Global selector fitted on the scaled full training set (same recipe as the folds)
+    global_selector = create_feature_selector(fs_cfg)
+    global_selector.fit(
+        global_scaler.transform(train_enriched_df[feature_cols]),
+        train_enriched_df["rul"].to_numpy(),
+    )
+    global_features = get_selected_feature_names(global_selector, feature_cols)
+    logger.info(
+        f"Selector global ajustado con el 100% del train (enabled={fs_enabled}): "
+        f"{len(global_features)}/{len(feature_cols)} features"
+    )
+
+    # 3. Full training tensors for the final retrain
+    train_prepared = scale_and_select_features(
+        train_enriched_df, global_scaler, global_selector, feature_cols
+    )
+    train_cols = ["unit_number", "time", "rul"] + global_features
+    X_train_full, y_train_full = create_windows(
+        train_prepared[train_cols], window_size=w_size, pad_strategy="edge"
+    )
+
+    # 4. Test tensor transformed with the very same scaler and selector
+    test_prepared = scale_and_select_features(
+        test_enriched_df, global_scaler, global_selector, feature_cols
+    )
+    X_test_final = prepare_test_data(test_prepared, global_features, window_size=w_size)
+
+    logger.info(
+        f"Tensores globales listos: train {X_train_full.shape} | test {X_test_final.shape}"
+    )
+    return X_train_full, y_train_full, X_test_final, global_features
 
 def evaluate_on_test_set(
         model: BaseModel,
@@ -594,7 +700,8 @@ def log_model_run_to_MLflow(
         model_name: str,
         cv_res: dict,
         test_res: dict,
-        config: dict
+        config: dict,
+        n_features_selected: int,
         ) -> None:
     """
     Registra los resultados de un modelo individual en el MLflow.
@@ -604,6 +711,8 @@ def log_model_run_to_MLflow(
         cv_res: Diccionario con resultados de la validación cruzada
         test_res: Diccionario con los resultados del test set
         config: Archivo de configuración del experimento
+        n_features_selected: Cantidad de features del tensor final (global).
+            Si la selección está deshabilitada es el total de columnas.
     """
     models_dict = {m["name"]: m.get("params", {}) for m in config.get("models", [])}
     m_params = models_dict.get(model_name, {})
@@ -622,7 +731,8 @@ def log_model_run_to_MLflow(
             "rul_max": config.get("data", {}).get("rul_max", 125),
             "window_size": config.get("data", {}).get("window_size", 30),
             "cv_folds": config.get("evaluation", {}).get("cv_folds", 10),
-            "random_seed": config.get("experiment", {}).get("random_seed", {})
+            "random_seed": config.get("experiment", {}).get("random_seed", {}),
+            "n_features_selected": int(n_features_selected),
         }
         for k, v in m_params.items():
             params_to_log[f"model_{k}"] = str(v)
@@ -646,14 +756,16 @@ def log_model_run_to_MLflow(
             "test_rmse": test_res.get("test_rmse", 0.0),
             "test_mae": test_res.get("test_mae", 0.0),
             "test_nasa_score": test_res.get("test_nasa_score", 0.0),
-            "test_latency_sec_engine": test_res.get("test_latency_sec_engine", 0.0)
+            "test_latency_sec_engine": test_res.get("test_latency_ms_engine", 0.0)
         })
     logger.info(f"Resultados del modelo {model_name.upper()} registrados en MLflow")
 
 def log_omnibus_comparission(
         cv_results_all: dict,
         test_results_all: dict,
-        config: dict
+        config: dict,
+        fold_feature_map: dict[int, list[str]] | None = None,
+        feature_counts: dict[str, int] | None = None,
 ) -> None:
     """
     Ejecuta la parte de la inferencia estadística multimodelo (Friedman + Nemenyi) y lo 
@@ -667,6 +779,9 @@ def log_omnibus_comparission(
         cv_results_all: Diccionario con los resultados de folds de CV de cada modelo
         test_results_all: Diccionario con los resultados del test set oficial
         config: Archivo de configuración de los experimentos
+        fold_feature_map: Mapeo {fold_idx: lista_features_seleccionadas} para
+            registrar la estabilidad de la selección de características.
+        feature_counts: Frecuencia {feature: nº de folds que la seleccionaron}.
     """
     if len(cv_results_all) < 2:
         logger.info(f"Sólo se evaluó un modelo. Se omite la comparación estadística multimodelo")
@@ -707,6 +822,16 @@ def log_omnibus_comparission(
             "subset": config.get("subset", "FD001"),
             "num_models": str(len(model_names)),
         })
+
+        # Estabilidad de la selección de características (Issue #5, criterio 5)
+        if fold_feature_map is not None and feature_counts is not None:
+            mlflow.log_dict(
+                {
+                    "feature_counts": feature_counts,
+                    "fold_feature_map": {str(k): v for k, v in fold_feature_map.items()},
+                },
+                "feature_stability.json",
+            )
 
         # 2. Bucle para evaluar cada dimensión por separado 
         for metric_name in metrics_to_compare:
@@ -813,6 +938,12 @@ def main() -> None:
         train_enriched, feature_cols, config, n_folds=n_folds
     )
 
+    # Pipeline global: scaler + selector ajustados con el 100% del train.
+    # Compartido por TODOS los modelos (diseño pareado) y por el test set.
+    X_train_full, y_train_full, X_test_final, global_features = prepare_global_datasets(
+        train_enriched, test_enriched, feature_cols, config
+    )
+
     rul_max = config.get("data", {}).get("rul_max", 125)
     y_test_official = np.minimum(rul_test_df["rul"].values, rul_max).astype(np.float32)
 
@@ -841,13 +972,17 @@ def main() -> None:
         )
         cv_results_all[m_name] = cv_res
 
-        # Test set con el MISMO escalador y features del último fold
-        X_test_last = prepare_test_data(
-            test_enriched, cv_res["last_scaler"], cv_res["last_features"], w_size
-        )
+        # Reentrenamiento final desde cero con los MISMOS params sobre el 100% del train.
+        # Los modelos de CV (last_model/last_scaler/last_features) quedan sólo para trazabilidad.
+        final_model = build_model(m_name, m_params, (w_size, len(global_features)))
+        fit_kwargs = {}
+        if isinstance(final_model, PyTorchModel) and args.dry_run:
+            fit_kwargs = {"epochs": 2}
+        final_model.fit(X_train_full, y_train_full, **fit_kwargs)
+
         test_res = evaluate_on_test_set(
-            model=cv_res["last_model"],
-            X_test=X_test_last,
+            model=final_model,
+            X_test=X_test_final,
             y_test=y_test_official,
         )
         test_results_all[m_name] = test_res
@@ -858,10 +993,17 @@ def main() -> None:
             cv_res=cv_res,
             test_res=test_res,
             config=config,
+            n_features_selected=len(global_features),
         )
 
     # Inferencia estadística multimodelo
-    log_omnibus_comparission(cv_results_all, test_results_all, config)
+    log_omnibus_comparission(
+        cv_results_all,
+        test_results_all,
+        config,
+        fold_feature_map=fold_feature_map,
+        feature_counts=feature_stability,
+    )
 
 
 if __name__ == "__main__":
