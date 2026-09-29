@@ -64,6 +64,33 @@ feature_selection:
     random_state: 42
     n_jobs: -1
 
+# Configuracion de Optimizacion de Hiperparametros (Optuna - Issue #11)
+optimization:
+  enabled: true                           # true: scripts/optimize.py incluye este subset
+  n_trials: 50                            # Minimo 20 por criterio de aceptacion
+  cv_folds: 5                             # CV interno de tuning (la evaluacion final usa evaluation.cv_folds)
+  objective: "rmse"                       # rmse | nasa_score
+  direction: "minimize"
+  seed: 42                                # TPESampler reproducible
+  models:
+    random_forest:
+      n_estimators: {type: int, low: 100, high: 800, step: 100}
+      max_depth: {type: int, low: 5, high: 30}
+      min_samples_leaf: {type: int, low: 1, high: 20}
+    xgboost:
+      n_estimators: {type: int, low: 100, high: 1000, step: 100}
+      learning_rate: {type: float, low: 0.01, high: 0.3, log: true}
+      max_depth: {type: int, low: 3, high: 12}
+    lightgbm:
+      n_estimators: {type: int, low: 100, high: 1000, step: 100}
+      num_leaves: {type: int, low: 15, high: 63}
+      learning_rate: {type: float, low: 0.01, high: 0.3, log: true}
+      subsample: {type: float, low: 0.6, high: 1.0}
+    svr:
+      C: {type: float, low: 0.1, high: 100, log: true}
+      epsilon: {type: float, low: 0.01, high: 1.0}
+      kernel: {type: categorical, choices: [rbf, linear]}
+
 # Modelos a evaluar
 models:
   - name: "associative_memory"
