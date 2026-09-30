@@ -32,10 +32,17 @@ mlruns/
 .atl/
 .agents/
 skills-lock.json
+.opencode/
 
 # Referencias bibliográficas
 references/
 
 # Archivos de redacción personales
 *Redacci*
+redaccion/
+
+# Artefactos de build y lockfile local
+*.egg-info/
+uv.lock
+
 mlflow.db
