@@ -177,17 +177,17 @@ class TestSuggestFromSpace:
 
     def test_unknown_type_raises_informative_error(self):
         trial = RecordingTrial()
-        with pytest.raises(ValueError, match="unsupported type"):
+        with pytest.raises(ValueError, match="no soportado"):
             suggest_from_space(trial, {"n": {"type": "string", "low": 1, "high": 2}})
 
     def test_missing_type_raises_informative_error(self):
         trial = RecordingTrial()
-        with pytest.raises(ValueError, match="type"):
+        with pytest.raises(ValueError, match="tipo"):
             suggest_from_space(trial, {"n": {"low": 1, "high": 2}})
 
     def test_low_greater_than_high_raises(self):
         trial = RecordingTrial()
-        with pytest.raises(ValueError, match="low"):
+        with pytest.raises(ValueError, match="no puede ser mayor"):
             suggest_from_space(trial, {"n": {"type": "int", "low": 50, "high": 10}})
 
     def test_missing_bounds_for_int_raises(self):
@@ -197,7 +197,7 @@ class TestSuggestFromSpace:
 
     def test_empty_choices_for_categorical_raises(self):
         trial = RecordingTrial()
-        with pytest.raises(ValueError, match="choices"):
+        with pytest.raises(ValueError, match="vacío"):
             suggest_from_space(trial, {"c": {"type": "categorical", "choices": []}})
 
 
