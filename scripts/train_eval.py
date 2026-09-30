@@ -957,6 +957,10 @@ def main() -> None:
 
     for m_name in selected_models:
         if m_name == "associative_memory":
+            logger.warning(
+                "Modelo 'associative_memory' omitido: pendiente de implementación (Issue #6). "
+                "El experimento corre con los modelos restantes."
+            )
             continue
 
         m_params = models_dict.get(m_name, {})
