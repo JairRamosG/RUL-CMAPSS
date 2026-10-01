@@ -14,6 +14,7 @@ Uso:
 """
 
 import argparse
+import json
 import logging
 from pathlib import Path
 import random
@@ -93,6 +94,14 @@ def parse_args() -> argparse.Namespace:
         "--dry-run",
         action = "store_true",
         help="Modo de pruebas rápido con datos/folds reducidos para ahorro computacional"
+    )
+
+    parser.add_argument(
+        "--tuned-params",
+        type = str,
+        default = None,
+        help="Ruta al JSON de hiperparámetros afinados exportado por scripts/optimize.py "
+             "(p.ej. tuned/config_FD001_tuned.json). Si se omite se usan los defaults del YAML"
     )
 
     return parser.parse_args()
@@ -846,7 +855,7 @@ def log_omnibus_comparission(
                 *scores_list,
                 alpha=alpha,
                 model_names=model_names,
-                higher_is_better=False, 
+                higher_is_better=higher_is_better, 
                 force_test=force_test,
             )
 
@@ -888,7 +897,29 @@ def log_omnibus_comparission(
         lat = f"{cv_s.get('latency_ms_mean', 0.0):.2f} ms"
         print(f"{m:<18} {cv_str:<22} {t_rmse:<12.2f} {ram:<14} {lat:<14}")
     print("=" * 95 + "\n")
-    
+
+def apply_tuned_params(config: dict, tuned_path: str | Path) -> dict:
+    """
+    Fusiona los hiperparámetros afinados exportados por scripts/optimize.py sobre
+    config["models"][i]["params"]: los defaults del YAML se conservan y en los
+    keys en conflicto prevalece el valor afinado.
+
+    Los modelos sin entrada en el JSON conservan los defaults del YAML.
+    """
+    tuned = json.loads(Path(tuned_path).read_text(encoding="utf-8"))
+    for model in config.get("models", []):
+        name = model.get("name")
+        if name not in tuned:
+            logger.info(f"'{name}' sin afinación en {tuned_path}: usando defaults del YAML")
+            continue
+        if not isinstance(tuned[name], dict):
+            raise ValueError(
+                f"tuned-params: la entrada de '{name}' debe ser un dict de parámetros, "
+                f"es {type(tuned[name]).__name__}"
+            )
+        logger.info(f"Hiperparámetros afinados fusionados sobre defaults del YAML en {name}: {tuned[name]}")
+        model["params"] = {**model.get("params", {}), **tuned[name]}
+    return config
 
 def main() -> None:
     """
@@ -899,6 +930,8 @@ def main() -> None:
     logger.info(f"Iniciando el experimento con argumentos: {vars(args)}")
 
     config = load_config(args.config)
+    if args.tuned_params:
+        config = apply_tuned_params(config, args.tuned_params)
     seed = config.get("experiment", {}).get("random_seed", 42)
     set_seed(seed)
 
