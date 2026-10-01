@@ -103,7 +103,7 @@ def optimize_hyperparameters(
     """
 
     if model_factory is None:
-        raise ValueError(f"model_factoy con función lambda es obligatorio para optimizar los hiperparámetros")
+        raise ValueError("model_factory es obligatorio en optimize_hyperparameters (p.ej. model_factory=lambda params: RandomForestRegressor(**params))")
 
     opt_cfg = config.get("optimization", {})
     n_trials = config.get("n_trials", 20)
