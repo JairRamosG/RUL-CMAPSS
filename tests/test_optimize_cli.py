@@ -340,13 +340,13 @@ class TestMainCli:
         ]
 
     def test_main_sin_flag_usa_ruta_default(self, tmp_path, monkeypatch, main_env):
-        """Sin --tuned-params-out exporta en tuned/<subset>_tuned.json (ruta default)."""
+        """Sin --tuned-params-out exporta en tuned/config_<subset>_tuned.json (ruta default)."""
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(sys, "argv", ["optimize.py"])
 
         cli.main()
 
-        out = tmp_path / "tuned" / "FD001_tuned.json"
+        out = tmp_path / "tuned" / "config_FD001_tuned.json"
         assert out.exists()
         assert json.loads(out.read_text(encoding="utf-8")) == {
             "random_forest": {"n_estimators": 10}

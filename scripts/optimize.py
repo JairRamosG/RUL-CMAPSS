@@ -2,9 +2,8 @@
 CLI de la optimización de hiperparámetros con Optuna
 
 Uso:
-    uv run python scripts/optimize.py --config configs/config_FD001.yaml \
-        [--models random_forest xgboost] [--dry-run] \
-        [--tuned-params-out tuned/config_FD001_tuned.json]
+    uv run python scripts/optimize.py --config configs/config_FD001.yaml --models random_forest
+    uv run python scripts/optimize.py --config configs/config_FD001.yaml --models random_forest --dry-run --tuned-params-out tuned/smoke_rf.json
 """
 
 import argparse
@@ -74,7 +73,7 @@ def parse_args() -> argparse.Namespace:
         "--tuned-params-out",
         type = str,
         default = None,
-        help = "Ruta de salida para el JSON con los mejores hiperparámetros encontrados (default: tuned/<subset>_tuned.json)"
+        help = "Ruta de salida para el JSON con los mejores hiperparámetros encontrados (default: tuned/config_<subset>_tuned.json)"
     )
 
     return parser.parse_args()
@@ -148,7 +147,7 @@ def main() -> None:
 
     baseline_params = {m["name"]: m.get("params", {}) for m in config.get("models", [])}
     input_shape = (config.get("data", {}).get("window_size", 30), len(feature_cols))
-    out_path = Path(args.tuned_params_out) if args.tuned_params_out else Path(f"tuned/{subset}_tuned.json")
+    out_path = Path(args.tuned_params_out) if args.tuned_params_out else Path(f"tuned/config_{subset}_tuned.json")
 
     init_mlflow(config)
     tuned_results: dict[str, dict] = {}
