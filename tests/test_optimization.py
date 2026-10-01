@@ -353,7 +353,7 @@ class TestOptimizeHyperparameters:
         assert result["objective"] == "nasa_score"
 
     def test_missing_model_factory_raises_informative_error(self, dataset, feature_cols):
-        with pytest.raises(ValueError, match="model_factory"):
+        with pytest.raises(ValueError, match="model_factoy con función lambda es obligatorio para optimizar los hiperparámetros"):
             optimize_hyperparameters(
                 model_name="stub_model",
                 base_params=BASE_PARAMS,
