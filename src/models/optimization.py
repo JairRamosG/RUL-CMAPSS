@@ -97,6 +97,7 @@ def optimize_hyperparameters(
     model_factory=None,
     dry_run: bool = False,
     storage: str | None = None,
+    study_name: str | None = None,
 ) -> dict:
     """
     Optimiza los hiperparámetros con Optuna TPE sobre un GroupKFold con grupos por motor donde el scaler y el selector solo ven train
@@ -153,11 +154,18 @@ def optimize_hyperparameters(
         return float(np.mean(fold_scores))
 
     sampler = optuna.samplers.TPESampler(seed = seed)
-    study = optuna.create_study(direction = direction, sampler = sampler, storage = storage)
-    study.optimize(
-        lambda trial : evaluate(suggest_from_space(trial, search_space)),
-        n_trials = n_trials
+    study = optuna.create_study(
+        direction = direction,
+        sampler = sampler,
+        storage = storage,
+        study_name = study_name,
+        load_if_exists = bool(storage),
     )
+    if n_trials > 0:
+        study.optimize(
+            lambda trial : evaluate(suggest_from_space(trial, search_space)),
+            n_trials = n_trials
+        )
 
     baseline_value = evaluate(base_params)
     best_value = float(study.best_value)
