@@ -53,25 +53,6 @@ def validate_optimization_config(opt_cfg: dict) -> dict:
     return opt_cfg
 
 
-def optimize_hyperparameters(
-    model_name: str,
-    base_params: dict,
-    search_space: dict,
-    dataset,            # pd.DataFrame
-    feature_cols: list[str],
-    config: dict,
-    model_factory=None,
-    dry_run: bool = False,
-    storage: str | None = None,
-) -> dict:
-    raise NotImplementedError("unit 4")
-
-
-def export_best_params(results: dict, out_path) -> Path:
-    raise NotImplementedError("unit 3")
-
-
-
 def suggest_from_space(trial: Any, search_space: dict) -> dict:
     """
     Mapea los espacios de busqueda del YAML para la llamada de Optuna suggest_*
@@ -103,4 +84,108 @@ def suggest_from_space(trial: Any, search_space: dict) -> dict:
         else:
             raise ValueError(f"parametro {name} no soportado")
     return params
+
+
+
+
+def optimize_hyperparameters(
+    model_name: str,
+    base_params: dict,
+    search_space: dict,
+    dataset,            # pd.DataFrame
+    feature_cols: list[str],
+    config: dict,
+    model_factory=None,
+    dry_run: bool = False,
+    storage: str | None = None,
+) -> dict:
+    """
+    Optimiza los hiperparámetros con Optuna TPE sobre un GroupKFold con grupos por motor donde el scaler y el selector solo ven train
+    """
+
+    if model_factory is None:
+        raise ValueError(f"model_factoy con función lambda es obligatorio para optimizar los hiperparámetros")
+
+    opt_cfg = config.get("optimization", {})
+    n_trials = config.get("n_trials", 20)
+    cv_folds = config.get("cv_folds", 2)
+    objective = opt_cfg.get("objective", "rmse")
+    direction = opt_cfg.get("direction", "minimize")
+    seed = int(opt_cfg.get("seed", 42))
+
+    if dry_run:
+        n_trials = min(3, n_trials)
+        cv_folds = min(2, cv_folds)
+
+    metric_fn = {"rmse": rmse, "nasa_score": nasa_score}.get(objective)
+    if metric_fn is None:
+        raise ValueError(f"optimization.objective '{objective}' no soportado")
+
+    groups = dataset["unit_number"].values
+    gkf = GroupKFold(n_splits = cv_folds)
+    splits = list(gkf.split(dataset, groups = groups))
+
+    fs_cfg = config.get("feature_selection") or {}
+
+    def evaluate(params: dict) -> float:
+        """
+        Obtiene la métrica promedio del objetivo con CV por motor, es la simulación del pipeline
+        """
+        fold_scores = []
+        for train_idx, val_idx in splits:
+            train_df = dataset.iloc[train_idx]
+            val_df = dataset.iloc[val_idx]
+            X_train, y_train = train_df[feature_cols], train_df["rul"]
+            X_val, y_val = val_df[feature_cols], val_df["rul"]
+
+            scaler = MinMaxScaler()
+            X_train_s = scaler.fit_transform(X_train)
+            X_val_s = scaler.transform(X_val)
+
+            if fs_cfg.get("enabled"):
+                selector = create_feature_selector(fs_cfg)
+                X_train_s = selector.fit_transform(X_train_s, y_train)
+                X_val_s = selector.transform(X_val_s)
+
+            model = model_factory({**base_params, **params})
+            model.fit(X_train_s, y_train)
+            y_pred = np.asarray(model.predict(X_val_s), dtype=float)
+            fold_scores.append(float(metric_fn(np.asarray(y_val, dtype=float), y_pred)))
+        return float(np.mean(fold_scores))
+
+    sampler = optuna.samplers.TPESampler(seed = seed)
+    study = optuna.create_study(direction = direction, sampler = sampler, storage = storage)
+    study.optimize(
+        lambda trial : evaluate(suggest_from_space(trial, search_space)),
+        n_trials = n_trials
+    )
+
+    baseline_value = evaluate(base_params)
+    best_value = float(study.best_value)
+    best_params = dict(study.best_params)
+
+    baseline_beaten = (best_value < baseline_value if direction == "minimize" else best_value > baseline_value)
+    if not baseline_beaten:
+        logger.warning("%s: tuned (%.4f) no supera al baseline (%.4f) en '%s'; search space a revisar.",
+            model_name, best_value, baseline_value, objective,
+        )
+
+    completed = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+
+    return{
+        "best_params": best_params,
+        "best_value": best_value,
+        "baseline_value": baseline_value,
+        "objective": objective,
+        "n_trials_completed" : len(completed)
+    }
+
+
+
+
+
+
+
+def export_best_params(results: dict, out_path) -> Path:
+    raise NotImplementedError("unit 3")
 
