@@ -106,8 +106,8 @@ def optimize_hyperparameters(
         raise ValueError("model_factory es obligatorio en optimize_hyperparameters (p.ej. model_factory=lambda params: RandomForestRegressor(**params))")
 
     opt_cfg = config.get("optimization", {})
-    n_trials = config.get("n_trials", 20)
-    cv_folds = config.get("cv_folds", 2)
+    n_trials = opt_cfg.get("n_trials", 20)
+    cv_folds = opt_cfg.get("cv_folds", 2)
     objective = opt_cfg.get("objective", "rmse")
     direction = opt_cfg.get("direction", "minimize")
     seed = int(opt_cfg.get("seed", 42))
