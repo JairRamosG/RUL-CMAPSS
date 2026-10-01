@@ -256,7 +256,7 @@ def create_feature_selector(config: dict[str, Any] | None = None) -> Pipeline | 
         Pipeline o BaseEstimator compatible con fit y transform.
     """
 
-    if config is None or not config.get("enabled", True):
+    if config is None or not config.get("enabled", False):
         return FunctionTransformer()    
 
     method = config.get("method", "hybrid").lower()

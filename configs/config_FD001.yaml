@@ -31,12 +31,10 @@ data:
   data_dir: "datos"
   rul_max: 125           # Limite superior para Piecewise RUL (ciclos)
   window_size: 30        # Tamano de ventana temporal (ciclos)
-  overlap: 0             # Overlap entre ventanas (0 = sin overlap)
 
 # Configuracion de sensores
 sensors:
   remove: [1, 5, 6, 10, 16, 18, 19]  # Sensores constantes/baja varianza
-  normalize: true                      # Aplicar MinMax scaling
 
 # Configuracion de Feature Engineering
 feature_engineering:
@@ -96,10 +94,6 @@ models:
       n_bins: 50
       discretization: "uniform"
       decoding_method: "centroid"
-    search_space:
-      n_bins: [20, 100]                    # Numero de bins para cuantizacion
-      discretization: ["uniform", "quantile"]  # Estrategia de discretizacion
-      decoding_method: ["centroid", "weighted_average"]  # Metodo de decodificacion
 
   - name: "random_forest"
     params:
@@ -108,11 +102,6 @@ models:
       min_samples_split: 2
       min_samples_leaf: 1
       n_jobs: -1
-    search_space:
-      n_estimators: [50, 300]    # Numero de arboles
-      max_depth: [5, 30]         # Profundidad maxima
-      min_samples_split: [2, 20] # Minimo muestras para dividir nodo
-      min_samples_leaf: [1, 10]  # Minimo muestras en hoja
 
   - name: "xgboost"
     params:
@@ -121,11 +110,6 @@ models:
       learning_rate: 0.1
       subsample: 0.8
       n_jobs: -1
-    search_space:
-      n_estimators: [50, 300]    # Numero de boosting rounds
-      max_depth: [3, 15]         # Profundidad maxima del arbol
-      learning_rate: [0.01, 0.3] # Tasa de aprendizaje
-      subsample: [0.6, 1.0]      # Submuestreo de filas
 
   - name: "lightgbm"
     params:
@@ -134,31 +118,18 @@ models:
       learning_rate: 0.1
       subsample: 0.8
       n_jobs: -1
-    search_space:
-      n_estimators: [50, 300]    # Numero de boosting rounds
-      num_leaves: [15, 63]       # Numero de hojas (leaf-wise)
-      learning_rate: [0.01, 0.3] # Tasa de aprendizaje
-      subsample: [0.6, 1.0]      # Submuestreo de filas
 
   - name: "svr"
     params:
       C: 1.0
       epsilon: 0.1
       kernel: "rbf"
-    search_space:
-      C: [0.1, 100]              # Parametro de regularizacion
-      epsilon: [0.01, 1]         # Margen de tolerancia
-      kernel: ["rbf", "linear"]  # Tipo de kernel
 
   - name: "mlp"
     params:
       hidden_units: [128, 64]
       dropout: 0.2
       lr: 0.001
-    search_space:
-      hidden_layers: [[64, 32], [128, 64, 32], [256, 128, 64]]  # Arquitecturas
-      dropout: [0.1, 0.5]        # Tasa de dropout
-      learning_rate: [0.001, 0.01]  # Tasa de aprendizaje
 
   - name: "cnn1d"
     params:
@@ -166,10 +137,6 @@ models:
       kernel_size: 3
       dropout: 0.2
       lr: 0.001
-    search_space:
-      filters: [16, 64]          # Numero de filtros por capa
-      kernel_size: [3, 7]        # Tamano del kernel convolucional
-      hidden_size: [32, 128]     # Neuronas en capa densa final
 
   - name: "lstm"
     params:
@@ -177,34 +144,18 @@ models:
       num_layers: 2
       dropout: 0.2
       lr: 0.001
-    search_space:
-      hidden_size: [32, 128]     # Tamano del estado oculto
-      num_layers: [1, 3]         # Numero de capas LSTM
-      dropout: [0.1, 0.5]        # Dropout entre capas
 
 # Configuracion de evaluacion
 evaluation:
-  prediction_metrics: ["rmse", "mae", "nasa_score"]  # Metricas de precision
   cv_folds: 10                                        # 10 folds (10 motores por fold en FD001)
-  cv_group_by: "unit_number"                          # Agrupar por motor (evitar leakage)
   statistical_test:
     alpha: 0.05
     higher_is_better: false
     force_test: null                                  # null: auto-seleccion, o 'friedman' / 'rm_anova'
-
-# Perfilado de recursos computacionales (centro del analisis de trade-offs)
-profiling:
-  enabled: true                                       # Activar perfilado de recursos
-  metrics:                                            # Metricas a registrar en cada ejecucion
-    - "train_time"                                    # Tiempo de entrenamiento (segundos)
-    - "inference_latency"                             # Latencia de inferencia (ms/motor)
-    - "ram_train"                                     # Memoria RAM pico entrenamiento (MB)
-    - "ram_inference"                                 # Memoria RAM pico inferencia (MB)
+    metrics_to_compare: ["rmse", "mae", "nasa_score", "latency_ms_engine", "peak_ram_mb", "train_time_sec"]
 
 # Configuracion del experimento
 experiment:
   random_seed: 42                          # Semilla para reproducibilidad
-  n_jobs: -1                               # Usar todos los cores disponibles
-  verbose: 1                               # Nivel de verbosidad
   mlflow_tracking_uri: "sqlite:///mlflow.db"  # URI de MLflow
   mlflow_experiment_name: "rul_cmapss_FD001"  # Nombre del experimento MLflow

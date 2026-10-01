@@ -20,18 +20,15 @@ CONFIG_FILES = [
 ]
 
 # Required fields structure
-REQUIRED_FIELDS = ["subset", "description", "data", "sensors", "models", "evaluation", "experiment", "profiling"]
-REQUIRED_DATA = ["data_dir", "rul_max", "window_size", "overlap"]
-REQUIRED_SENSORS = ["remove", "normalize"]
-REQUIRED_EVALUATION = ["prediction_metrics", "cv_folds", "cv_group_by"]
-REQUIRED_EXPERIMENT = ["random_seed", "n_jobs", "verbose", "mlflow_tracking_uri", "mlflow_experiment_name"]
-REQUIRED_PROFILING = ["enabled", "metrics"]
+REQUIRED_FIELDS = ["subset", "description", "data", "sensors", "models", "evaluation", "experiment"]
+REQUIRED_DATA = ["data_dir", "rul_max", "window_size"]
+REQUIRED_SENSORS = ["remove"]
+REQUIRED_EVALUATION = ["cv_folds"]
+REQUIRED_EXPERIMENT = ["random_seed", "mlflow_tracking_uri", "mlflow_experiment_name"]
+REQUIRED_STATISTICAL_TEST = ["alpha", "higher_is_better", "force_test", "metrics_to_compare"]
 
 # Valid model names
 VALID_MODELS = ["associative_memory", "random_forest", "xgboost", "lightgbm", "svr", "mlp", "cnn1d", "lstm"]
-
-# Required profiling metrics
-REQUIRED_PROFILING_METRICS = ["train_time", "inference_latency", "ram_train", "ram_inference"]
 
 
 class TestYAMLStructure:
@@ -114,17 +111,18 @@ class TestYAMLStructure:
         assert not missing, f"Missing experiment fields in {config_file}: {missing}"
     
     @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_profiling_fields_present(self, config_file: str):
-        """Test that all profiling fields are present."""
+    def test_statistical_test_fields_present(self, config_file: str):
+        """Test that all statistical_test fields are present."""
         with open(config_file, "r") as f:
             config = yaml.safe_load(f)
         
+        stat_cfg = config.get("evaluation", {}).get("statistical_test", {})
         missing = []
-        for field in REQUIRED_PROFILING:
-            if field not in config.get("profiling", {}):
-                missing.append(f"profiling.{field}")
+        for field in REQUIRED_STATISTICAL_TEST:
+            if field not in stat_cfg:
+                missing.append(f"evaluation.statistical_test.{field}")
         
-        assert not missing, f"Missing profiling fields in {config_file}: {missing}"
+        assert not missing, f"Missing statistical_test fields in {config_file}: {missing}"
 
 
 class TestDataTypes:
@@ -163,36 +161,12 @@ class TestDataTypes:
         assert isinstance(config.get("data", {}).get("window_size"), int), "data.window_size must be an integer"
     
     @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_overlap_is_int(self, config_file: str):
-        """Test that overlap is an integer."""
-        with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-        
-        assert isinstance(config.get("data", {}).get("overlap"), int), "data.overlap must be an integer"
-    
-    @pytest.mark.parametrize("config_file", CONFIG_FILES)
     def test_sensors_remove_is_list(self, config_file: str):
         """Test that sensors.remove is a list."""
         with open(config_file, "r") as f:
             config = yaml.safe_load(f)
         
         assert isinstance(config.get("sensors", {}).get("remove"), list), "sensors.remove must be a list"
-    
-    @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_normalize_is_bool(self, config_file: str):
-        """Test that sensors.normalize is a boolean."""
-        with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-        
-        assert isinstance(config.get("sensors", {}).get("normalize"), bool), "sensors.normalize must be a boolean"
-    
-    @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_prediction_metrics_is_list(self, config_file: str):
-        """Test that evaluation.prediction_metrics is a list."""
-        with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-        
-        assert isinstance(config.get("evaluation", {}).get("prediction_metrics"), list), "evaluation.prediction_metrics must be a list"
     
     @pytest.mark.parametrize("config_file", CONFIG_FILES)
     def test_cv_folds_is_int(self, config_file: str):
@@ -203,20 +177,13 @@ class TestDataTypes:
         assert isinstance(config.get("evaluation", {}).get("cv_folds"), int), "evaluation.cv_folds must be an integer"
     
     @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_profiling_enabled_is_bool(self, config_file: str):
-        """Test that profiling.enabled is a boolean."""
+    def test_metrics_to_compare_is_list(self, config_file: str):
+        """Test that evaluation.statistical_test.metrics_to_compare is a list."""
         with open(config_file, "r") as f:
             config = yaml.safe_load(f)
         
-        assert isinstance(config.get("profiling", {}).get("enabled"), bool), "profiling.enabled must be a boolean"
-    
-    @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_profiling_metrics_is_list(self, config_file: str):
-        """Test that profiling.metrics is a list."""
-        with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-        
-        assert isinstance(config.get("profiling", {}).get("metrics"), list), "profiling.metrics must be a list"
+        stat_cfg = config.get("evaluation", {}).get("statistical_test", {})
+        assert isinstance(stat_cfg.get("metrics_to_compare"), list), "evaluation.statistical_test.metrics_to_compare must be a list"
 
 
 class TestValueRanges:
@@ -283,39 +250,6 @@ class TestModels:
         models = config.get("models", [])
         assert len(models) == 8, f"Expected 8 models, got {len(models)}"
     
-    @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_search_space_defined(self, config_file: str):
-        """Test that search_space is defined for each model."""
-        with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-        
-        for model in config.get("models", []):
-            assert "search_space" in model, f"Model {model.get('name')} missing search_space"
-            assert model["search_space"], f"Model {model.get('name')} has empty search_space"
-
-
-class TestProfiling:
-    """Tests for profiling configuration."""
-    
-    @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_profiling_enabled(self, config_file: str):
-        """Test that profiling is enabled."""
-        with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-        
-        assert config.get("profiling", {}).get("enabled") is True, "profiling must be enabled"
-    
-    @pytest.mark.parametrize("config_file", CONFIG_FILES)
-    def test_required_profiling_metrics(self, config_file: str):
-        """Test that all required profiling metrics are present."""
-        with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-        
-        metrics = config.get("profiling", {}).get("metrics", [])
-        
-        for metric in REQUIRED_PROFILING_METRICS:
-            assert metric in metrics, f"Missing profiling metric: {metric}"
-
 
 class TestDescriptions:
     """Tests for description quality."""
