@@ -87,7 +87,6 @@ def suggest_from_space(trial: Any, search_space: dict) -> dict:
 
 
 
-
 def optimize_hyperparameters(
     model_name: str,
     base_params: dict,
@@ -183,9 +182,14 @@ def optimize_hyperparameters(
 
 
 
-
-
-
 def export_best_params(results: dict, out_path) -> Path:
-    raise NotImplementedError("unit 3")
+    """
+    Exporta los mejores hiperparametros a JSON para usar en train_eval --tuned-parms
+    Crea los directorios por si faltan y sobreescribe los existentes
+    """
+
+    out = Path(out_path)
+    out.parent.mkdir(parents = True, exist_ok = True)
+    out.write_text(json.dumps(results, indent = 2), encoding = 'utf-8')
+    return out
 
