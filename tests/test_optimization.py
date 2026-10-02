@@ -485,3 +485,97 @@ class TestConfigsOptimizationBlock:
         with open(Path("configs") / "config_FD001.yaml", encoding="utf-8") as fh:
             opt = yaml.safe_load(fh)["optimization"]
         assert set(opt) >= {"enabled", "n_trials", "cv_folds", "objective", "direction", "seed", "models"}
+
+
+# ---------------------------------------------------------------------------
+# 7. Reproducibilidad por trial: set_seed antes de cada evaluación (Issue #11, AC §97)
+# ---------------------------------------------------------------------------
+
+class TestSeedPorTrial:
+    def test_set_seed_se_invoca_una_vez_por_trial_con_la_semilla_del_config(
+        self, dataset, feature_cols, monkeypatch
+    ):
+        """Cada trial y el baseline llaman a set_seed con la seed del config."""
+        import src.models.optimization as opt_module
+
+        llamadas: list[int] = []
+        monkeypatch.setattr(opt_module, "set_seed", lambda s: llamadas.append(s))
+
+        n_trials = 4
+        optimize_hyperparameters(
+            model_name="stub_model",
+            base_params=BASE_PARAMS,
+            search_space=SPACE_BIAS_NEAR,
+            dataset=dataset,
+            feature_cols=feature_cols,
+            config=make_config({"seed": 7, "n_trials": n_trials}),
+            model_factory=stub_factory,
+        )
+
+        # n_trials semillas por trial + 1 semilla para el baseline
+        assert llamadas == [7] * (n_trials + 1)
+
+    def test_set_seed_se_ejecuta_antes_de_evaluar_cada_trial(
+        self, dataset, feature_cols, monkeypatch
+    ):
+        """El orden dentro de la corrida es: set_seed y recién después los fits del CV."""
+        import src.models.optimization as opt_module
+
+        eventos: list[str] = []
+        monkeypatch.setattr(opt_module, "set_seed", lambda s: eventos.append("seed"))
+
+        def factory_spy(params: dict):
+            eventos.append("fit")
+            return stub_factory(params)
+
+        n_trials = 3
+        cv_folds = 2
+        optimize_hyperparameters(
+            model_name="stub_model",
+            base_params=BASE_PARAMS,
+            search_space=SPACE_BIAS_NEAR,
+            dataset=dataset,
+            feature_cols=feature_cols,
+            config=make_config({"n_trials": n_trials, "cv_folds": cv_folds}),
+            model_factory=factory_spy,
+        )
+
+        indices_seed = [i for i, ev in enumerate(eventos) if ev == "seed"]
+        # nada se evalúa sin sembrar primero
+        assert eventos[0] == "seed"
+        assert len(indices_seed) == n_trials + 1  # trials + baseline
+        # entre semillas consecutivas: exactamente un evaluate de cv_folds fits
+        for a, b in zip(indices_seed, indices_seed[1:]):
+            assert eventos[a + 1 : b] == ["fit"] * cv_folds
+        # el evaluate final (baseline) también va precedido de su semilla
+        assert eventos[indices_seed[-1] + 1 :] == ["fit"] * cv_folds
+
+    def test_misma_semilla_dos_corridas_mismo_resultado(
+        self, dataset, feature_cols
+    ):
+        """Dos corridas con la misma config y seed dan exactamente el mismo
+        resultado aunque el modelo consuma el RNG global (AC §97)."""
+
+        class StubRuidoso(StubRegressor):
+            def predict(self, X):
+                return super().predict(X) + np.random.normal(0.0, 0.05, len(X))
+
+        def factory_ruidoso(params: dict) -> StubRuidoso:
+            return StubRuidoso(params)
+
+        corridas = [
+            optimize_hyperparameters(
+                model_name="stub_model",
+                base_params=BASE_PARAMS,
+                search_space=SPACE_BIAS_NEAR,
+                dataset=dataset,
+                feature_cols=feature_cols,
+                config=make_config({"seed": 123, "n_trials": 5}),
+                model_factory=factory_ruidoso,
+            )
+            for _ in range(2)
+        ]
+
+        assert corridas[0]["best_value"] == corridas[1]["best_value"]
+        assert corridas[0]["baseline_value"] == corridas[1]["baseline_value"]
+        assert corridas[0]["best_params"] == corridas[1]["best_params"]

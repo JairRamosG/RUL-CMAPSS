@@ -29,6 +29,20 @@ logger = logging.getLogger(__name__)
 VALID_OBJECTIVES = ("rmse", "nasa_score")
 VALID_DIRECTIONS = ("minimize", "maximize")
 
+def set_seed(seed: int = 42) -> None:
+    """
+    Fija la semilla para ejecutar todos los experimentos con reproducibilidad
+
+    Delegación perezosa a scripts.train_eval: el import a nivel de módulo
+    rompía importar src desde un cwd fuera del repo y ejecutaba el cuerpo de
+    train_eval (logging.basicConfig) al importar este módulo (Issue #11, AC §97)
+
+    Args:
+        seed: Valor entero
+    """
+    from scripts.train_eval import set_seed as _set_seed
+    _set_seed(seed)
+
 def validate_optimization_config(opt_cfg: dict) -> dict:
     """
     Valida que el bloque de configuración en el archivo YAML tenga un formato valido (Fail Early, Fail Fast)
@@ -101,6 +115,11 @@ def optimize_hyperparameters(
 ) -> dict:
     """
     Optimiza los hiperparámetros con Optuna TPE sobre un GroupKFold con grupos por motor donde el scaler y el selector solo ven train
+
+    Reproducibilidad (Issue #11, AC §97): cada trial y la evaluación del baseline
+    vuelven a sembrar la semilla en el RNG global con el mismo `seed` del config
+    antes de evaluar, de modo que el score es una función pura de (params, seed),
+    independiente del orden de los trials o del historial de reanudación del estudio.
     """
 
     if model_factory is None:
@@ -153,6 +172,16 @@ def optimize_hyperparameters(
             fold_scores.append(float(metric_fn(np.asarray(y_val, dtype=float), y_pred)))
         return float(np.mean(fold_scores))
 
+    def trial_objective(trial: Any) -> float:
+        """
+        Función objetivo de Optuna: vuelve a sembrar la semilla en el RNG global
+        al inicio de cada trial (Issue #11, AC §97) y luego evalúa los
+        hiperparámetros sugeridos. Se llama `trial_objective` y no `objective`
+        porque ese nombre ya está ocupado por la métrica del config.
+        """
+        set_seed(seed)
+        return evaluate(suggest_from_space(trial, search_space))
+
     sampler = optuna.samplers.TPESampler(seed = seed)
     study = optuna.create_study(
         direction = direction,
@@ -163,10 +192,14 @@ def optimize_hyperparameters(
     )
     if n_trials > 0:
         study.optimize(
-            lambda trial : evaluate(suggest_from_space(trial, search_space)),
+            trial_objective,
             n_trials = n_trials
         )
 
+    # El baseline también se re-siembra: al correr fuera de un trial, su valor
+    # dependería del estado residual del RNG tras el último trial; con la misma
+    # semilla, misma config => mismo baseline (Issue #11, AC §97).
+    set_seed(seed)
     baseline_value = evaluate(base_params)
     best_value = float(study.best_value)
     best_params = dict(study.best_params)
