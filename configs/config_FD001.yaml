@@ -61,6 +61,9 @@ feature_selection:
     n_jobs: -1
 
 # Configuracion de Optimizacion de Hiperparametros (Optuna - Issue #11)
+# Nota: Modela hiperparametros para algoritmos de ML clasico basados en features tabulares 2D.
+# Los modelos de Deep Learning (mlp, cnn1d, lstm) procesan tensores 3D temporales
+# construidos en train_eval.py y se evaluan con sus arquitecturas y parametros base.
 optimization:
   enabled: true                           # true: scripts/optimize.py incluye este subset
   n_trials: 50                            # Minimo 20 por criterio de aceptacion
@@ -70,21 +73,23 @@ optimization:
   seed: 42                                # TPESampler reproducible
   models:
     random_forest:
-      n_estimators: {type: int, low: 100, high: 800, step: 100}
-      max_depth: {type: int, low: 5, high: 30}
-      min_samples_leaf: {type: int, low: 1, high: 20}
+      n_estimators: {type: int, low: 100, high: 600, step: 50}
+      max_depth: {type: int, low: 5, high: 25}
+      min_samples_split: {type: int, low: 2, high: 20}
+      min_samples_leaf: {type: int, low: 1, high: 15}
     xgboost:
-      n_estimators: {type: int, low: 100, high: 1000, step: 100}
+      n_estimators: {type: int, low: 100, high: 800, step: 50}
       learning_rate: {type: float, low: 0.01, high: 0.3, log: true}
-      max_depth: {type: int, low: 3, high: 12}
+      max_depth: {type: int, low: 3, high: 10}
+      subsample: {type: float, low: 0.6, high: 1.0}
     lightgbm:
-      n_estimators: {type: int, low: 100, high: 1000, step: 100}
+      n_estimators: {type: int, low: 100, high: 800, step: 50}
       num_leaves: {type: int, low: 15, high: 63}
       learning_rate: {type: float, low: 0.01, high: 0.3, log: true}
       subsample: {type: float, low: 0.6, high: 1.0}
     svr:
-      C: {type: float, low: 0.1, high: 100, log: true}
-      epsilon: {type: float, low: 0.01, high: 1.0}
+      C: {type: float, low: 0.1, high: 100.0, log: true}
+      epsilon: {type: float, low: 0.01, high: 0.5}
       kernel: {type: categorical, choices: [rbf, linear]}
 
 # Modelos a evaluar
