@@ -1,0 +1,7 @@
+{
+  "random_forest": {
+    "n_estimators": 500,
+    "max_depth": 9,
+    "min_samples_leaf": 4
+  }
+}

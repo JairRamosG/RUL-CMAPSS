@@ -1,0 +1,23 @@
+{
+  "random_forest": {
+    "n_estimators": 200,
+    "max_depth": 8,
+    "min_samples_leaf": 8
+  },
+  "xgboost": {
+    "n_estimators": 200,
+    "learning_rate": 0.03305522462432077,
+    "max_depth": 4
+  },
+  "lightgbm": {
+    "n_estimators": 200,
+    "num_leaves": 25,
+    "learning_rate": 0.021510879668313925,
+    "subsample": 0.927556877880391
+  },
+  "svr": {
+    "C": 4.515879287674543,
+    "epsilon": 0.9273386841155823,
+    "kernel": "rbf"
+  }
+}
