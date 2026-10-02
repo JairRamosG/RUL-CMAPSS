@@ -11,6 +11,9 @@ Uso:
     python scripts/train_eval.py --config configs/config_FD001.yaml --dry-run
     python scripts/train_eval.py --models random_forest mlp lstm --dry-run
 
+    train_eval consume ese único archivo con todos los modelos
+    uv run python scripts/train_eval.py --config configs/config_FD001.yaml --tuned-params tuned/config_FD001_tuned.json
+
 """
 
 import argparse

@@ -4,6 +4,10 @@ CLI de la optimización de hiperparámetros con Optuna
 Uso:
     uv run python scripts/optimize.py --config configs/config_FD001.yaml --models random_forest
     uv run python scripts/optimize.py --config configs/config_FD001.yaml --models random_forest --dry-run --tuned-params-out tuned/smoke_rf.json
+
+    Optimiza todos los modelos del config para un json con todas las claves
+    uv run python scripts/optimize.py --config configs/config_FD001.yaml
+
 """
 
 import argparse
