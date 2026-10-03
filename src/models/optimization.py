@@ -220,9 +220,6 @@ def optimize_hyperparameters(
         "n_trials_completed" : len(completed)
     }
 
-
-
-
 def export_best_params(results: dict, out_path) -> Path:
     """
     Exporta los mejores hiperparametros a JSON para usar en train_eval --tuned-parms
@@ -234,3 +231,11 @@ def export_best_params(results: dict, out_path) -> Path:
     out.write_text(json.dumps(results, indent = 2), encoding = 'utf-8')
     return out
 
+def existing_trials(study_name: str, storage: str) -> int:
+    """
+    Trials que ya existen registrados en el Study de Optuna (0 si no existe aún).
+    """
+    try:
+        return len(optuna.load_study(study_name = study_name, storage = storage).trials)
+    except KeyError:
+        return 0
