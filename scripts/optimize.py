@@ -22,19 +22,17 @@ if str(PROJECT_ROOT) not in sys.path:
 import mlflow  
 import optuna
 
-from scripts.train_eval import(
-    build_model,
-    extract_features,
-    init_mlflow,
-    load_config,
-    prepare_raw_data,
-    set_seed
-)
+from src.utils.config import load_config
+from src.data.pipeline import prepare_raw_data, extract_features
+from src.utils.reproducibility import set_seed
+from src.models.factory import build_model
+from src.tracking.mlflow_reporter import init_mlflow, log_trials_to_mlflow
 
-from src.models.optimization import(
+from src.models.optimization import (
+    existing_trials,
     export_best_params,
     optimize_hyperparameters,
-    validate_optimization_config
+    validate_optimization_config,
 )
 
 logging.basicConfig(
@@ -83,34 +81,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _existing_trials(study_name: str) -> int:
-    """
-    Trials que ya existen registrados en el Study de Optuna (0 si no existe aún).
-    """
-    try:
-        return len(optuna.load_study(study_name = study_name, storage = OPTUNA_STORAGE).trials)
-    except KeyError:
-        return 0
-
-
-def _log_trials_to_mlflow(study_name: str, model_name: str, subset: str, objective: str) -> None:
-    """
-    Registra cada trial del study como un run anidado bajo el run padre en el MLflow.
-    """
-
-    study = optuna.load_study(study_name = study_name, storage = OPTUNA_STORAGE)
-    for trial in study.trials:
-        with mlflow.start_run(run_name = f"trial_{trial.number}", nested = True):
-            mlflow.set_tags({
-                "model_name" : model_name,
-                "subset" : subset,
-                "stage": "optimization",
-                "trial_state": str(trial.state)
-            })
-            if trial.params:
-                mlflow.log_params(trial.params)
-            if trial.value is not None:
-                mlflow.log_metrics({f"{objective}": float(trial.value)})
 
 def main() -> None:
     """
@@ -158,7 +128,7 @@ def main() -> None:
 
     for model_name in selected:
         study_name = f"{subset}_{model_name}"
-        done = _existing_trials(study_name)
+        done = existing_trials(study_name, storage = OPTUNA_STORAGE)
 
         target_trials = 3 if args.dry_run else int(opt_cfg.get("n_trials", 20))
         remaining = max(0, target_trials - done)
@@ -206,7 +176,7 @@ def main() -> None:
                     "n_trials_completed": float(results["n_trials_completed"]),
                 }
             )
-            _log_trials_to_mlflow(study_name, model_name, subset, results["objective"])
+            log_trials_to_mlflow(study_name, model_name, subset, results["objective"], storage = OPTUNA_STORAGE)
 
     if tuned_results:
         path = export_best_params(tuned_results, out_path)
@@ -215,8 +185,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
