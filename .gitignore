@@ -46,3 +46,4 @@ redaccion/
 uv.lock
 
 mlflow.db
+optuna.db
