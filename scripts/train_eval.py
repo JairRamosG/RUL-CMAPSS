@@ -17,19 +17,10 @@ Uso:
 """
 
 import argparse
-import json
 import logging
 from pathlib import Path
-import random
 import sys
-from typing import Optional
-
 import numpy as np
-import torch
-import yaml
-
-from sklearn.preprocessing import MinMaxScaler
-import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -66,6 +57,9 @@ from src.tracking.mlflow_reporter import (
     log_omnibus_comparission
 )
 
+from src.utils.config import load_config, apply_tuned_params
+from src.data.pipeline import prepare_raw_data, extract_features
+from src.utils.reproducibility import set_seed
 
 
 # Configuracción de los loggings
@@ -119,139 +113,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     return parser.parse_args()
-
-# Cargar el archivo de configuración
-def load_config(config_path:str | Path) -> dict:
-    """
-    Carga y valida los archivos de configuración YAML de los experimentos.
-
-    Args:
-        config_path: Ruta del archivo YAML
-
-    Returns:
-        dict con la información del experimento
-    
-    Raises:
-        FileNotFoundError: Si el archivo no existe en el sistema de archivos
-        ValueError: Le faltan secciónes al archivo de configuración
-    """
-
-    path = Path(config_path)
-    if not path.is_file():
-        raise FileNotFoundError(f"No se encontró el archivo de configuración en : {path.resolve()}")
-
-    with open(path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-
-    # Validación de las secciónes del archivo de configuración YAML
-    required_sections = ["subset", "data", "models", "evaluation", "experiment"]
-    missing = [sec for sec in required_sections if sec not in config]
-    if missing:
-        raise ValueError(f"El archivo {path.name} no es válido para los experimentos. Le falta: {missing}")
-    
-    logger.info(f"Configuración correcta cargada desde: {path.name}")
-    return config
-
-# Definir la semilla aleatoria
-def set_seed(seed: int = 42) -> None:
-    """
-    Fija la semilla para ejecutar todos los experimentos con reproducibilidad
-
-    Args:
-        seed: Valor entero     
-    """
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic=True
-        torch.backends.cudnn.benchmark = False
-    logger.info(f"Semilla determinística establecida en: {seed}")
-
-def prepare_raw_data(config:dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """
-    Carga los datos crudos, filtra los sensores constantes y etiqueta el valor de RUL
-
-    Args:
-        config: Diccionario del archivo de configuración del experimento
-
-    Returns:
-        tuple: (train_df, test_df, rul_test_df) preprocesados a nivel tabular base
-    """
-    subset = config.get("subset", "FD001")
-    data_dir = config.get("data", {}).get("data_dir", "datos")
-    rul_max = config.get("data", {}).get("rul_max", 125)
-    sensors_to_remove = config.get("sensors", {}).get("remove", [])
-
-    logger.info(f"Cargando el subset de: {subset} - {data_dir}")
-    train_df, test_df, rul_test_df = load_cmapss(subset = subset, data_dir = data_dir)
-
-    # FIltrar sensores de varianza 0 que se vieron en el EDA
-    if sensors_to_remove:
-        logger.info(f"Removiendo {len(sensors_to_remove)} sensores constantes: {sensors_to_remove}")
-        train_df = remove_constant_sensors(train_df, sensors_to_remove)
-        test_df = remove_constant_sensors(test_df, sensors_to_remove)
-
-    # Etiquetar RUL en entrenamiento
-    logger.info(f"Calculando la etiqueta de rul con el rul_max = {rul_max}")
-    train_df = compute_piecewise_rul(train_df, rul_max = rul_max)
-
-    return train_df, test_df, rul_test_df
-
-def extract_features(df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """
-    Aplica ingeniería de características temporales (rolling stats y trends)
-
-    Args: 
-        df: DataFrame ordenado por (unit_number, time)
-        config: Diccionario de configuración del experimento
-
-    Returns:
-        DataFrame con todas las nuevas columnas
-    """
-    fe_cfg = config.get("feature_engineering", {})
-    df_features = df.copy()
-
-    # Calcular todas las rolling stats (time delay embedding)
-    rolling_cfg = fe_cfg.get("rolling_stats", {})
-    if rolling_cfg.get("enabled", False):
-        w_size = rolling_cfg.get("window_size", 30)
-        stat_types = rolling_cfg.get("stat_types", ["mean", "std", "min", "max"])
-        logger.info(f"Calculando las rolling stats W:{w_size} - stats: {stat_types}")
-        df_features = compute_rolling_stats(df_features, window_size = w_size, stat_types = stat_types)
-
-    # Calcular tendencias y diferencias finitas
-    trends_cfg = fe_cfg.get("trends", {})
-    if trends_cfg.get("enabled", False):
-        delta_steps = trends_cfg.get("delta_steps", [1])
-        logger.info(f"Calculando las tendencias de cada sensor con deltas: {delta_steps}")
-        df_features = compute_trends(df_features, delta_steps = delta_steps, base_features_only = True)
-    return df_features
-
-
-def apply_tuned_params(config: dict, tuned_path: str | Path) -> dict:
-    """
-    Fusiona los hiperparámetros afinados exportados por scripts/optimize.py sobre
-    config["models"][i]["params"]: los defaults del YAML se conservan y en los
-    keys en conflicto prevalece el valor afinado.
-
-    Los modelos sin entrada en el JSON conservan los defaults del YAML.
-    """
-    tuned = json.loads(Path(tuned_path).read_text(encoding="utf-8"))
-    for model in config.get("models", []):
-        name = model.get("name")
-        if name not in tuned:
-            logger.info(f"'{name}' sin afinación en {tuned_path}: usando defaults del YAML")
-            continue
-        if not isinstance(tuned[name], dict):
-            raise ValueError(
-                f"tuned-params: la entrada de '{name}' debe ser un dict de parámetros, "
-                f"es {type(tuned[name]).__name__}"
-            )
-        logger.info(f"Hiperparámetros afinados fusionados sobre defaults del YAML en {name}: {tuned[name]}")
-        model["params"] = {**model.get("params", {}), **tuned[name]}
-    return config
 
 def main() -> None:
     """
@@ -374,30 +235,5 @@ def main() -> None:
         feature_counts=feature_stability,
     )
 
-
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
