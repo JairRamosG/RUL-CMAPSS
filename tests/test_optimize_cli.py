@@ -153,11 +153,11 @@ def main_env(monkeypatch):
             "n_trials_completed": 2,
         }
 
-    def fake_existing_trials(study_name):
+    def fake_existing_trials(study_name, storage=None):
         env.existing_calls.append(study_name)
         return 0
 
-    def fake_log_trials_to_mlflow(study_name, model_name, subset, objective):
+    def fake_log_trials_to_mlflow(study_name, model_name, subset, objective, storage=None):
         env.logged_calls.append((study_name, model_name, subset, objective))
 
     monkeypatch.setattr(cli, "load_config", fake_load_config)
@@ -167,8 +167,8 @@ def main_env(monkeypatch):
     monkeypatch.setattr(cli, "set_seed", fake_set_seed)
     monkeypatch.setattr(cli, "init_mlflow", fake_init_mlflow)
     monkeypatch.setattr(cli, "optimize_hyperparameters", fake_optimize_hyperparameters)
-    monkeypatch.setattr(cli, "_existing_trials", fake_existing_trials)
-    monkeypatch.setattr(cli, "_log_trials_to_mlflow", fake_log_trials_to_mlflow)
+    monkeypatch.setattr(cli, "existing_trials", fake_existing_trials)
+    monkeypatch.setattr(cli, "log_trials_to_mlflow", fake_log_trials_to_mlflow)
     monkeypatch.setattr(cli.mlflow, "start_run", lambda *args, **kwargs: _DummyRun())
     monkeypatch.setattr(cli.mlflow, "set_tags", lambda tags: None)
     monkeypatch.setattr(cli.mlflow, "log_params", lambda params: None)
@@ -229,24 +229,24 @@ class TestParseArgs:
 
 
 # ---------------------------------------------------------------------------
-# 2. _existing_trials: conteo reanudable de trials en el storage
+# 2. existing_trials: conteo reanudable de trials en el storage
 # ---------------------------------------------------------------------------
 
 class TestExistingTrials:
     def test_estudio_inexistente_devuelve_0(self, tmp_storage):
         """Estudio que nunca corrio: 0 trials y sin excepcion."""
-        assert cli._existing_trials("FD001_fake") == 0
+        assert cli.existing_trials("FD001_fake", storage=tmp_storage) == 0
 
     def test_cuenta_trials_registrados(self, tmp_storage):
         """Cuenta los trials ya registrados en el storage."""
         study = optuna.create_study(study_name="s1", storage=tmp_storage)
         study.optimize(lambda trial: 1.0, n_trials=3)
 
-        assert cli._existing_trials("s1") == 3
+        assert cli.existing_trials("s1", tmp_storage) == 3
 
 
 # ---------------------------------------------------------------------------
-# 3. _log_trials_to_mlflow: cada trial como run anidado (fakes, sin servidor)
+# 3. log_trials_to_mlflow: cada trial como run anidado (fakes, sin servidor)
 # ---------------------------------------------------------------------------
 
 class TestLogTrialsToMlflow:
@@ -261,7 +261,9 @@ class TestLogTrialsToMlflow:
         recorder = RecordingMlflow()
         recorder.install(monkeypatch)
 
-        cli._log_trials_to_mlflow("FD001_rf", "random_forest", "FD001", "rmse")
+        cli.log_trials_to_mlflow(
+            "FD001_rf", "random_forest", "FD001", "rmse", storage=tmp_storage
+        )
 
         assert [run["run_name"] for run in recorder.runs] == ["trial_0", "trial_1"]
         assert all(run["nested"] is True for run in recorder.runs)
