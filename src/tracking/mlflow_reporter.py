@@ -6,9 +6,12 @@ import logging
 from typing import Dict, List, Optional
 
 import mlflow
+import optuna
 import numpy as np
 
 from src.evaluation.statistical_tests import compare_multiple_models
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -220,3 +223,22 @@ def log_omnibus_comparission(
         lat = f"{cv_s.get('latency_ms_mean', 0.0):.2f} ms"
         print(f"{m:<18} {cv_str:<22} {t_rmse:<12.2f} {ram:<14} {lat:<14}")
     print("=" * 95 + "\n")
+
+def log_trials_to_mlflow(study_name: str, model_name: str, subset: str, objective: str, storage: str) -> None:
+    """
+    Registra cada trial del study como un run anidado bajo el run padre en el MLflow.
+    """
+
+    study = optuna.load_study(study_name = study_name, storage = storage)
+    for trial in study.trials:
+        with mlflow.start_run(run_name = f"trial_{trial.number}", nested = True):
+            mlflow.set_tags({
+                "model_name" : model_name,
+                "subset" : subset,
+                "stage": "optimization",
+                "trial_state": str(trial.state)
+            })
+            if trial.params:
+                mlflow.log_params(trial.params)
+            if trial.value is not None:
+                mlflow.log_metrics({f"{objective}": float(trial.value)})
