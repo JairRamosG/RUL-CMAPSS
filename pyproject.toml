@@ -30,6 +30,8 @@ dependencies = [
     "scikit-posthocs>=0.8.0",
     "pingouin>=0.5.3",
     "protobuf<5.0.0",
+    "plotly>=5.18.0",
+    "nbformat>=4.2.0",
 ]
 
 [tool.pytest.ini_options]
