@@ -36,7 +36,7 @@ data:
 
 # Configuracion de sensores
 sensors:
-  remove: []             # Pendiente de EDA - complejidad maxima
+  remove: [1, 5, 6, 10, 16, 18, 19]  # Invariantes intra-regimen (EDA FD004)
 
 # Configuracion de Feature Engineering
 feature_engineering:
