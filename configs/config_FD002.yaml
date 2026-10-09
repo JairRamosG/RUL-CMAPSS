@@ -34,6 +34,7 @@ data:
   data_dir: "datos"
   rul_max: 125           # Limite superior para Piecewise RUL (ciclos)
   window_size: 30        # Tamano de ventana temporal (ciclos)
+  operating_normalization: true
 
 # Configuracion de sensores
 sensors:
