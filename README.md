@@ -1,43 +1,30 @@
-<div align="center">
-
-# 🛩️ Predicción de Vida Útil Remanente (RUL) en Turbinas de Aviación
+# Predicción de Vida Útil Remanente (RUL) en Turbinas de Aviación
 
 ### Trabajo de Tesis — Procesamiento de Datos Complejo
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
-![scikit-learn](https://img.shields.io/badge/scikit--learn-1.5+-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)
-![XGBoost](https://img.shields.io/badge/XGBoost-2.0+-217346?style=for-the-badge&logo=xgboost&logoColor=white)
-![LightGBM](https://img.shields.io/badge/LightGBM-4.0+-3499CD?style=for-the-badge&logo=lightgbm&logoColor=white)
-![Optuna](https://img.shields.io/badge/Optuna-3.5+-20A4F3?style=for-the-badge&logo=optuna&logoColor=white)
-![MLflow](https://img.shields.io/badge/MLflow-2.15+-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)
-![License](https://img.shields.io/badge/Licencia-MIT-green?style=for-the-badge)
-
 **Predicción del Remaining Useful Life (RUL) de motores turbofán utilizando el dataset NASA C-MAPSS, con normalización por régimen operativo, selección híbrida de características y búsqueda bayesiana de hiperparámetros.**
 
-</div>
+---
+
+## Índice
+
+1. [Planteamiento del Problema](#planteamiento-del-problema)
+2. [Dataset: NASA C-MAPSS](#dataset-nasa-c-mapss)
+3. [Metodología General](#metodología-general)
+4. [Normalización por Régimen Operativo (ORN)](#normalización-por-régimen-operativo-orn)
+5. [Evidencia Visual del Análisis Exploratorio](#evidencia-visual-del-análisis-exploratorio)
+6. [Arquitectura del Proyecto](#arquitectura-del-proyecto)
+7. [Componentes del Sistema](#componentes-del-sistema)
+8. [Modelos Implementados](#modelos-implementados)
+9. [Herramientas y Librerías](#herramientas-y-librerías)
+10. [Instalación y Uso](#instalación-y-uso)
+11. [Resultados Esperados](#resultados-esperados)
 
 ---
 
-## 📋 Índice
+## Planteamiento del Problema
 
-1. [Planteamiento del Problema](#-planteamiento-del-problema)
-2. [Dataset: NASA C-MAPSS](#-dataset-nasa-c-mappss)
-3. [Metodología General](#-metodología-general)
-4. [Normalización por Régimen Operativo (ORN)](#-normalización-por-régimen-operativo-orn)
-5. [Evidencia Visual del Análisis Exploratorio](#-evidencia-visual-del-análisis-exploratorio)
-6. [Arquitectura del Proyecto](#-arquitectura-del-proyecto)
-7. [Componentes del Sistema](#-componentes-del-sistema)
-8. [Modelos Implementados](#-modelos-implementados)
-9. [Herramientas y Librerías](#-herramientas-y-librerías)
-10. [Instalación y Uso](#-instalación-y-uso)
-11. [Resultados Esperados](#-resultados-esperados)
-
----
-
-## 🎯 Planteamiento del Problema
-
-Los turbinas de aviación operan en condiciones extremas de temperatura y presión. Su fallo inesperado tiene consecuencias catastróficas: accidentes aéreos, costos de mantenimiento millonarios y riesgos para la vida humana. La **mantención predictiva** (Predictive Maintenance) busca anticipar estos fallos estimando cuántos ciclos de operación le quedan a un motor antes de que falle: su **Vida Útil Remanente (Remaining Useful Life, RUL)**.
+Las turbinas de aviación operan en condiciones extremas de temperatura y presión. Su fallo inesperado tiene consecuencias catastróficas: accidentes aéreos, costos de mantenimiento millonarios y riesgos para la vida humana. La **mantención predictiva** (Predictive Maintenance) busca anticipar estos fallos estimando cuántos ciclos de operación le quedan a un motor antes de que falle: su **Vida Útil Remanente** (Remaining Useful Life, RUL).
 
 > **Definición formal:** el RUL en ciclo *t* de un motor es el número de ciclos operativos restantes hasta el fallo:
 >
@@ -53,68 +40,265 @@ Este proyecto aborda estos desafíos con un pipeline de machine learning complet
 
 ---
 
-## 📊 Dataset: NASA C-MAPSS
+## Dataset: NASA C-MAPSS
 
 El dataset **[NASA C-MAPSS](https://www.nasa.gov/intelligent-systems-division/discovery-and-systems-health/pcoe/pcoe-data-set-repository/)** (Commercial Modular Aero-propulsion System Simulation) contiene datos de simulación de motores turbofán de gran hélice con degradación progresiva. Cada motor arranca con condiciones de desgaste aleatorias y opera hasta el fallo.
 
 | Subset | Motores (train/test) | Regímenes Operativos | Modos de Fallo | Complejidad |
 |--------|---------------------|---------------------|----------------|-------------|
-| **FD001** | 100 / 100 | 1 | 1 (HPC) | ⭐ Básica |
-| **FD002** | 260 / 259 | **6** | 1 (HPC) | ⭐⭐⭐ Multirégimen |
-| **FD003** | 100 / 100 | 1 | **2** (HPC + Fan) | ⭐⭐ Multimodo |
-| **FD004** | 249 / 248 | **6** | **2** (HPC + Fan) | ⭐⭐⭐⭐ Completa |
+| **FD001** | 100 / 100 | 1 | 1 (HPC) | Básica |
+| **FD002** | 260 / 259 | **6** | 1 (HPC) | Multirégimen |
+| **FD003** | 100 / 100 | 1 | **2** (HPC + Fan) | Multimodo |
+| **FD004** | 249 / 248 | **6** | **2** (HPC + Fan) | Completa |
 
 **Columnas por registro:**
-- **3 condiciones operativas** (`setting_1`, `setting_2`, `setting_3`): altitude, Mach number y Throttle Setting.
+- **3 condiciones operativas** (`setting_1`, `setting_2`, `setting_3`): altitud, número de Mach y Throttle Setting.
 - **21 sensores** (`sensor_1` … `sensor_21`): medidas de temperatura, presión, flujo y velocidades.
 - **RUL etiquetado** en el conjunto de entrenamiento; en test solo se conoce el ciclo final de operación.
 
 ---
 
-## 🔬 Metodología General
+## Metodología General
 
 El pipeline sigue una metodología rigurosa con validación cruzada **GroupKFold** por motor para evitar data leakage:
 
-```mermaid
-flowchart TD
-    A[("🚀 Datos Crudos<br/>NASA C-MAPSS")] --> B["🗂️ Carga y Estructuración<br/>src/data/loader.py"]
-    B --> C["🔍 Filtrado de Sensores<br/>remove_constant_sensors"]
-    C --> D{"¿Subset Multirégimen?<br/>(FD002 / FD004)"}
-    D -->|Sí| E["⚙️ Normalización ORN<br/>OperatingRegimeNormalizer"]
-    D -->|No| F["✅ Sensores Base"]
-    E --> G["📊 Etiquetado RUL<br/>compute_piecewise_rul"]
-    F --> G
-    G --> H["🌀 Feature Engineering<br/>Rolling Stats + Trends"]
-    H --> I["🎯 Selección Híbrida<br/>Mutual Info + Random Forest"]
-    I --> J["🔄 Validación Cruzada<br/>GroupKFold por Motor"]
-    J --> K["🤖 Entrenamiento<br/>8 Modelos"]
-    K --> L["📈 Evaluación<br/>RMSE / Score NASA"]
-    L --> M["📊 Estadística<br/>Friedman + Nemenyi"]
-    M --> N[("📊 MLflow Registry<br/>Comparativa Final")]
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    PIPELINE GENERAL DE MACHINE LEARNING             │
+└─────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │                     DATOS CRUDOS NASA                        │
+  │                   (train / test / RUL)                       │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │           CARGA Y ESTRUCTURACIÓN (loader.py)                 │
+  │         • Parsing de archivos de texto C-MAPSS               │
+  │         • Conversión a DataFrames de pandas                  │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         FILTRADO DE SENSORES CONSTANTES                      │
+  │         (remove_constant_sensors)                            │
+  │         • Elimina sensores con varianza ≈ 0                  │
+  │         • Sensores invariables identificados en EDA          │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         ¿SUBSET MULTIRÉGIMEN? (FD002 / FD004)               │
+  │                                                              │
+  │         ┌─────────────┬─────────────┐                        │
+  │         │     SÍ     │     NO      │                        │
+  │         └─────────────┴─────────────┘                        │
+  │               │             │                                │
+  │               ▼             ▼                                │
+  │         ┌──────────┐  ┌────────────┐                         │
+  │         │   ORN    │  │  SENSORES  │                         │
+  │         │ NORMALIZ.│  │   BASE     │                         │
+  │         └──────────┘  └────────────┘                         │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         ETIQUETADO RUL (compute_piecewise_rul)               │
+  │         • Fórmula: min(ciclo_max − ciclo, rul_max)          │
+  │         • Aplica corte en rul_max = 125 ciclos              │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         FEATURE ENGINEERING (engineering.py)                 │
+  │         • Rolling stats (ventana W=30): media, std, min, max│
+  │         • Trends (diferencias finitas ΔS = S_t − S_{t−1})   │
+  │         • Para datos profundos: create_windows() → 3D       │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         SELECCIÓN HÍBRIDA DE CARACTERÍSTICAS                │
+  │         (selection.py)                                       │
+  │         • Mutual Information + Random Forest Importance      │
+  │         • Anti-leakage: se ejecuta DENTRO de cada fold      │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         VALIDACIÓN CRUZADA GroupKFold                        │
+  │         (cross_validation.py)                                │
+  │         • 5 folds, agrupados por motor ID                    │
+  │         • Evita data leakage entre ventanas del mismo motor │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         ENTRENAMIENTO (8 modelos)                            │
+  │         • Clásicos: RF, XGBoost, LightGBM, SVR              │
+  │         • Asociativo: Memoria Asociativa                     │
+  │         • Profundos: MLP, CNN1D, LSTM (PyTorch)             │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         EVALUACIÓN (metrics.py)                              │
+  │         • RMSE (Root Mean Squared Error)                     │
+  │         • Score NASA (función asimétrica)                    │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         ESTADÍSTICA (statistical_tests.py)                   │
+  │         • Friedman test (comparación global)                 │
+  │         • Nemenyi post-hoc (comparación por pares)          │
+  │         • Wilcoxon signed-rank (dos modelos específicos)    │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │         MLFLOW EXPERIMENT TRACKING                           │
+  │         • Registro de parámetros, métricas, tags            │
+  │         • UI para comparar experimentos                      │
+  └──────────────────────────────────────────────────────────────┘
 ```
 
 ### Desglose de las Etapas Críticas
 
-```mermaid
-flowchart LR
-    subgraph ORN["Normalización por Régimen"]
-        O1["K-Means K=6"] --> O2["Aprendizaje de μ, σ"]
-        O2 --> O3["z = (x − μ_régimen) / σ_régimen"]
-    end
-    subgraph FS["Selección Híbrida Anti-Leakage"]
-        F1["Mutual Information"] --> F3["Intersección"]
-        F2["RF Importance (Gini)"] --> F3
-        F3 --> F4["Conjunto Final"]
-    end
-    subgraph OPT["Optimización Bayesiana"]
-        Y1["Optuna TPE"] --> Y2["GroupKFold CV"]
-        Y2 --> Y3["Mejores Hiperparámetros"]
-    end
+**Normalización por Régimen (ORN):**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  NORMALIZACIÓN POR RÉGIMEN OPERATIVO (ORN)                  │
+└─────────────────────────────────────────────────────────────┘
+
+  Datos crudos (sensores sin normalizar)
+                    │
+                    ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │  K-Means Clustering (K=6 sobre Settings 1, 2, 3)       │
+  │  → Identifica 6 regímenes operativos distintos          │
+  └─────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │  Para cada régimen r:                                    │
+  │  • Calcular media μ_r                                    │
+  │  • Calcular desviación estándar σ_r                      │
+  └─────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │  Transformación: z = (x − μ_r) / σ_r                   │
+  │  • Restar media del régimen                             │
+  │  • Dividir por desviación del régimen                   │
+  └─────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+  Resultado: datos estandarizados por régimen
+  • Medias ≈ 0 por cada régimen (error < 10⁻¹²)
+  • Desviaciones = 1.0 por cada régimen
+  • La física de degradación queda expuesta, sin ruido operativo
+```
+
+**Selección Híbrida de Características (Anti-Leakage):**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  SELECCIÓN HÍBRIDA DENTRO DE CADA FOLD (Anti-Leakage)      │
+└─────────────────────────────────────────────────────────────┘
+
+  Para cada fold de GroupKFold:
+                    │
+                    ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │  Solo datos de entrenamiento del fold                   │
+  └─────────────────────────────────────────────────────────┘
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+          ▼                   ▼
+  ┌─────────────────┐  ┌─────────────────┐
+  │  MUTUAL         │  │  RANDOM FOREST  │
+  │  INFORMATION    │  │  IMPORTANCE     │
+  │                 │  │  (Gini)         │
+  └─────────────────┘  └─────────────────┘
+          │                   │
+          └─────────┬─────────┘
+                    │
+                    ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │  INTERSECCIÓN: características seleccionadas por AMBAS  │
+  │  técnicas → conjunto final robusto                      │
+  └─────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+  Selección aplicada a datos de validación del fold
+  (sin acceso a información del fold de test)
+```
+
+**Optimización Bayesiana de Hiperparámetros (Optuna):**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  OPTIMIZACIÓN BAYESIANA CON OPTUNA (TPE Sampler)            │
+└─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────┐
+  │  OPTUNA TPE     │ ◄── Propone combinación de hiperparámetros
+  │  (Tree-         │     basándose en trials anteriores
+  │   Parzen        │
+  │   Estimator)    │
+  └────────┬────────┘
+           │
+           ▼
+  ┌─────────────────┐
+  │  ENTRENAR       │
+  │  MODELO         │
+  │  (con HP        │
+  │   propuestos)   │
+  └────────┬────────┘
+           │
+           ▼
+  ┌─────────────────┐
+  │  GROUPKFOLD CV  │
+  │  (5 folds,      │
+  │   agrupado      │
+  │   por motor)    │
+  └────────┬────────┘
+           │
+           ▼
+  ┌─────────────────┐
+  │  CALCULAR RMSE  │
+  │  PROMEDIO       │
+  │  (en validación)│
+  └────────┬────────┘
+           │
+     ┌─────┴─────┐
+     │           │
+     ▼           ▼
+  ┌────────┐  ┌────────┐
+  │¿MEJOR? │  │ NO     │
+  │   SÍ   │  │        │
+  └────┬───┘  └────┬───┘
+       │           │
+       ▼           ▼
+  ┌────────┐  ┌────────┐
+  │GUARDAR │  │DESCARTAR│
+  │ TRIAL  │  │  TRIAL  │
+  └────────┘  └────────┘
+       │           │
+       └─────┬─────┘
+             │
+             ▼
+  Repetir hasta agotar n_trials (50 por defecto)
+  Exportar mejores HP a JSON
 ```
 
 ---
 
-## ⚙️ Normalización por Régimen Operativo (ORN)
+## Normalización por Régimen Operativo (ORN)
 
 Los subsets FD002 y FD004 contienen datos de **6 regímenes operativos distintos**. Sin normalizar, las señales de sensores se mezclan y la degradación real se pierde en el ruido de operación:
 
@@ -123,15 +307,6 @@ Los subsets FD002 y FD004 contienen datos de **6 regímenes operativos distintos
 *Figura clave: a la izquierda, la física controlada dentro de un régimen muestra claramente la separación entre modos de fallo. A la derecha, el espacio crudo mezcla todo y es indistinguible.*
 
 **Solución: `OperatingRegimeNormalizer`**
-
-```mermaid
-flowchart LR
-    A["x (crudo)"] --> B["K-Means<br/>clustering"]
-    B --> C["Identificar<br/>régimen r"]
-    C --> D["Restar μ_r<br/>y dividir σ_r"]
-    D --> E["z (estandarizado<br/>por régimen)"]
-    E --> F["↓ Medias ≈ 0<br/>por cada régimen"]
-```
 
 La función `fit()` aprende las medias y desviaciones estándar de los **6 regímenes** usando K-Means (K=6) sobre las condiciones operativas. Luego `transform()` estandariza cada muestra restando la media de su régimen y dividiendo por su desviación:
 
@@ -143,7 +318,7 @@ z = (x − μ_régimen) / σ_régimen
 
 ---
 
-## 🖼️ Evidencia Visual del Análisis Exploratorio
+## Evidencia Visual del Análisis Exploratorio
 
 ### Degradación Termodinámica en FD001
 
@@ -159,70 +334,70 @@ z = (x − μ_régimen) / σ_régimen
 
 ---
 
-## 🏗️ Arquitectura del Proyecto
+## Arquitectura del Proyecto
 
 ```
 rul-cmapss/
-├── 📁 configs/                    # Configuraciones experimentales por subset
-│   ├── config_FD001.yaml         #   Single-regime, single-mode
-│   ├── config_FD002.yaml         #   Multi-regime, single-mode
-│   ├── config_FD003.yaml         #   Single-regime, multi-mode
-│   └── config_FD004.yaml         #   Multi-regime, multi-mode
+├── configs/                         # Configuraciones experimentales por subset
+│   ├── config_FD001.yaml           #   Single-regime, single-mode
+│   ├── config_FD002.yaml           #   Multi-regime, single-mode
+│   ├── config_FD003.yaml           #   Single-regime, multi-mode
+│   └── config_FD004.yaml           #   Multi-regime, multi-mode
 │
-├── 📁 datos/                      # Dataset NASA C-MAPSS (no incluido por licencia)
+├── datos/                           # Dataset NASA C-MAPSS (no incluido por licencia)
 │
-├── 📁 notebooks/                  # Análisis exploratorio (EDA)
+├── notebooks/                       # Análisis exploratorio (EDA)
 │   ├── 01_eda_FD001.ipynb
 │   ├── 02_eda_FD002.ipynb
 │   ├── 03_eda_FD003.ipynb
 │   ├── 04_eda_FD004.ipynb
-│   └── 📁 figures/               # Figuras generadas (PNG + PDF 300 dpi)
+│   └── figures/                     # Figuras generadas (PNG + PDF 300 dpi)
 │
-├── 📁 scripts/                    # Puntos de entrada ejecutables
-│   ├── optimize.py               # Búsqueda bayesiana de hiperparámetros
-│   └── train_eval.py             # Entrenamiento + evaluación final
+├── scripts/                         # Puntos de entrada ejecutables
+│   ├── optimize.py                  # Búsqueda bayesiana de hiperparámetros
+│   └── train_eval.py                # Entrenamiento + evaluación final
 │
-├── 📁 src/                        # Código fuente del pipeline
-│   ├── 📁 data/                  # Carga y preprocesamiento
-│   │   ├── loader.py            #   Lectura de archivos C-MAPSS
-│   │   ├── preprocessing.py     #   ORN, eliminación de sensores, RUL
-│   │   └── pipeline.py          #   Orquestación del flujo de datos
+├── src/                             # Código fuente del pipeline
+│   ├── data/                        # Carga y preprocesamiento
+│   │   ├── loader.py               #   Lectura de archivos C-MAPSS
+│   │   ├── preprocessing.py        #   ORN, eliminación de sensores, RUL
+│   │   └── pipeline.py             #   Orquestación del flujo de datos
 │   │
-│   ├── 📁 features/             # Ingeniería de características
-│   │   ├── engineering.py       #   Rolling stats, trends, ventanas
-│   │   ├── selection.py         #   Selección híbrida (MI + RF)
-│   │   └── windowing.py         #   Creación de secuencias temporales
+│   ├── features/                    # Ingeniería de características
+│   │   ├── engineering.py          #   Rolling stats, trends, ventanas
+│   │   ├── selection.py            #   Selección híbrida (MI + RF)
+│   │   └── windowing.py            #   Creación de secuencias temporales
 │   │
-│   ├── 📁 models/               # Modelos de machine learning
-│   │   ├── factory.py           #   Fábrica abstracta de modelos
-│   │   ├── base.py              #   Interfaz base
-│   │   ├── sklearn_wrapper.py   #   Wrapper para modelos sklearn
-│   │   ├── pytorch_wrapper.py   #   Wrapper para modelos PyTorch
-│   │   ├── optimization.py      #   Integración con Optuna
+│   ├── models/                      # Modelos de machine learning
+│   │   ├── factory.py              #   Fábrica abstracta de modelos
+│   │   ├── base.py                 #   Interfaz base
+│   │   ├── sklearn_wrapper.py      #   Wrapper para modelos sklearn
+│   │   ├── pytorch_wrapper.py      #   Wrapper para modelos PyTorch
+│   │   ├── optimization.py         #   Integración con Optuna
 │   │   └── [8 modelos implementados]
 │   │
-│   ├── 📁 evaluation/           # Métricas y validación
-│   │   ├── metrics.py           #   RMSE, Score NASA
-│   │   ├── cross_validation.py  #   GroupKFold por motor
-│   │   └── statistical_tests.py #   Friedman, Nemenyi, Wilcoxon
+│   ├── evaluation/                  # Métricas y validación
+│   │   ├── metrics.py              #   RMSE, Score NASA
+│   │   ├── cross_validation.py     #   GroupKFold por motor
+│   │   └── statistical_tests.py    #   Friedman, Nemenyi, Wilcoxon
 │   │
-│   ├── 📁 tracking/             # Registro de experimentos
-│   │   └── mlflow_reporter.py   #   Logging a MLflow
+│   ├── tracking/                    # Registro de experimentos
+│   │   └── mlflow_reporter.py      #   Logging a MLflow
 │   │
-│   └── 📁 utils/                # Utilidades
-│       ├── config.py            #   Carga de YAMLs
-│       └── reproducibility.py   #   Semillas aleatorias
+│   └── utils/                       # Utilidades
+│       ├── config.py               #   Carga de YAMLs
+│       └── reproducibility.py      #   Semillas aleatorias
 │
-├── 📁 tuned/                     # Hiperparámetros optimizados (JSON)
-├── pyproject.toml                # Metadatos y dependencias
-└── estandarizacion_regimen.md    # Documentación detallada de ORN
+├── tuned/                           # Hiperparámetros optimizados (JSON)
+├── pyproject.toml                   # Metadatos y dependencias
+└── estandarizacion_regimen.md       # Documentación detallada de ORN
 ```
 
 ---
 
-## 🔧 Componentes del Sistema
+## Componentes del Sistema
 
-### 1. **Carga y Preprocesamiento** (`src/data/`)
+### 1. Carga y Preprocesamiento (`src/data/`)
 
 | Módulo | Función Principal | Descripción |
 |--------|-------------------|-------------|
@@ -233,7 +408,7 @@ rul-cmapss/
 | `pipeline.py` | `prepare_raw_data()` | **Orquestador principal**: carga → filtrado → ORN → RUL. Retorna train/test listos. |
 | | `extract_features()` | Ejecuta feature engineering según la configuración YAML. |
 
-### 2. **Ingeniería de Características** (`src/features/`)
+### 2. Ingeniería de Características (`src/features/`)
 
 | Módulo | Función | Descripción |
 |--------|---------|-------------|
@@ -244,7 +419,7 @@ rul-cmapss/
 | | `RFFeatureSelector` | Selecciona por importancia (Gini) de un Random Forest. |
 | | `create_feature_selector()` | Combina ambas técnicas (intersección) en un selector híbrido. |
 
-### 3. **Modelos** (`src/models/`)
+### 3. Modelos (`src/models/`)
 
 Los modelos heredan de una **interfaz común** (`base.py`) y se instancian vía **fábrica abstracta** (`factory.py`). Esto permite cambiar de modelo sin tocar el pipeline.
 
@@ -259,30 +434,19 @@ Los modelos heredan de una **interfaz común** (`base.py`) y se instancian vía 
 | `CNN1D` | Convolucional 1D | PyTorch | channels, kernel_size, dropout, lr |
 | `LSTM` | Recurrente | PyTorch | hidden_size, num_layers, dropout, lr |
 
-### 4. **Evaluación** (`src/evaluation/`)
+### 4. Evaluación (`src/evaluation/`)
 
 | Módulo | Métricas / Tests |
 |--------|------------------|
-| `metrics.py` | **RMSE** (Root Mean Squared Error), **Score NASA** (scoring function asymétrico que penaliza más las predicciones tardías). |
+| `metrics.py` | **RMSE** (Root Mean Squared Error), **Score NASA** (scoring function asimétrico que penaliza más las predicciones tardías). |
 | `cross_validation.py` | **GroupKFold** con grupos por motor ID. Evita data leakage entre ventanas del mismo motor. |
 | `statistical_tests.py` | **Friedman test** (comparación global), **Nemenyi post-hoc** (comparación por pares), **Wilcoxon signed-rank**. |
 
-### 5. **Optimización** (`src/models/optimization.py`)
+### 5. Optimización (`src/models/optimization.py`)
 
 Integra **Optuna** (TPE sampler) para búsqueda bayesiana de hiperparámetros. El objetivo es minimizar el RMSE promedio en validación cruzada GroupKFold.
 
-```mermaid
-flowchart LR
-    A["Optuna<br/>Propone HP"] --> B["Entrena<br/>Modelo"]
-    B --> C["GroupKFold<br/>CV (5-fold)"]
-    C --> D["Calcula<br/>RMSE"]
-    D --> E{"¿Mejor?"}
-    E -->|Sí| F["Guarda<br/>Trial"]
-    E -->|No| G["Descarta"]
-    F --> A
-```
-
-### 6. **Tracking** (`src/tracking/mlflow_reporter.py`)
+### 6. Tracking (`src/tracking/mlflow_reporter.py`)
 
 Cada experimento se registra en **MLflow** con:
 - **Parámetros**: configuración del modelo y del pipeline.
@@ -291,6 +455,7 @@ Cada experimento se registra en **MLflow** con:
 - **Artefactos**: JSON de hiperparámetros, figuras.
 
 Para ver el UI de MLflow:
+
 ```bash
 mlflow ui --backend-store-uri sqlite:///mlflow.db
 # Abrir http://localhost:5000
@@ -298,7 +463,7 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 ---
 
-## 🤖 Modelos Implementados
+## Modelos Implementados
 
 | Categoría | Modelos | Fortaleza |
 |-----------|---------|-----------|
@@ -310,7 +475,7 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 ---
 
-## 🛠️ Herramientas y Librerías
+## Herramientas y Librerías
 
 ### Core
 
@@ -365,7 +530,7 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 ---
 
-## 🚀 Instalación y Uso
+## Instalación y Uso
 
 ### Requisitos Previos
 
@@ -405,6 +570,7 @@ datos/
 #### 1. Análisis Exploratorio (EDA)
 
 Abrir los notebooks en orden:
+
 ```bash
 jupyter notebook notebooks/01_eda_FD001.ipynb
 jupyter notebook notebooks/02_eda_FD002.ipynb
@@ -480,7 +646,7 @@ models:
 
 ---
 
-## 📈 Resultados Esperados
+## Resultados Esperados
 
 ### Métricas de Evaluación
 
@@ -508,29 +674,18 @@ Tras ejecutar el pipeline completo, se generan automáticamente:
 
 ---
 
-## 📚 Referencias
+## Referencias
 
-- [1] E. Ramasso and A. Saxena, "Performance Benchmarking and Analysis of Prognostic Methods for CMAPSS Datasets," *International Journal of Prognostics and Health Management*, 2014.
-- [2] NASA Prognostics Center of Excellence (PCoE), "CMAPSS Simulation Data Set," NASA Data Archive.
-- [3] A. Saxena and K. Goebel, "Turbofan Engine Degradation Simulation Data Set," *NASA Prognostics Data Repository*, 2008.
+[1] E. Ramasso and A. Saxena, "Performance Benchmarking and Analysis of Prognostic Methods for CMAPSS Datasets," *International Journal of Prognostics and Health Management*, 2014.
+
+[2] NASA Prognostics Center of Excellence (PCoE), "CMAPSS Simulation Data Set," NASA Data Archive.
+
+[3] A. Saxena and K. Goebel, "Turbofan Engine Degradation Simulation Data Set," *NASA Prognostics Data Repository*, 2008.
 
 ---
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detalles.
 
 ---
-
-## 👨‍🎓 Autor
-
-**[Tu Nombre Aquí]**
-Trabajo de Tesis — Procesamiento de Datos Complejo
-[Nombre de la Universidad]
-[Fecha]
-
----
-
-<div align="center">
-  <sub>Construido con ❤️ y ☕ para la academia</sub>
-</div>
