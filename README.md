@@ -1,5 +1,14 @@
 # Predicción de Vida Útil Remanente (RUL) en Turbinas de Aviación
 
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-1.5+-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)
+![XGBoost](https://img.shields.io/badge/XGBoost-2.0+-217346?style=for-the-badge&logo=xgboost&logoColor=white)
+![LightGBM](https://img.shields.io/badge/LightGBM-4.0+-3499CD?style=for-the-badge&logo=lightgbm&logoColor=white)
+![Optuna](https://img.shields.io/badge/Optuna-3.5+-20A4F3?style=for-the-badge&logo=optuna&logoColor=white)
+![MLflow](https://img.shields.io/badge/MLflow-2.15+-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)
+![License](https://img.shields.io/badge/Licencia-MIT-green?style=for-the-badge)
+
 ### Trabajo de Tesis — Procesamiento de Datos Complejo
 
 **Predicción del Remaining Useful Life (RUL) de motores turbofán utilizando el dataset NASA C-MAPSS, con normalización por régimen operativo, selección híbrida de características y búsqueda bayesiana de hiperparámetros.**
