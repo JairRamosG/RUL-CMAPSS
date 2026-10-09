@@ -8,6 +8,146 @@ per-fold scaling.
 
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.base import BaseEstimator, TransformerMixin
+
+
+class OperatingRegimeNormalizer(BaseEstimator, TransformerMixin):
+    """
+    Estandarización condicionada por Régimen Operativo (ORN)
+
+    Elimina la varianza exógena de variables operativas (altitud, Mach, TRA) de los sensores
+    restando la media y dividiendo por la desviación estándar de cada regimen operativo para que
+    solo quede el patrón de degradación.
+
+    Args:
+        n_regimenes: Número de clusters en KMeans (6 de los YAML)
+        random_state: 42 para reproducibilidad
+        n_init: Inicializaciónes de los KMeans
+        eps: Espsilon para evitar divisiones con 0
+        settings_mode: Qúe se hace con los settings despues del cluster
+            "drop" = eliminarlos
+            "onehot" = reemplazarlos por columnas
+    """
+
+    SETTINGS_COLS = ["setting_1", "setting_2", "setting_3"]
+
+    def __init__(
+            self, 
+            n_regimenes: int = 6, 
+            random_state: int = 42,
+            n_init: int = 10,
+            eps: float = 1e-6,
+            settings_mode: str = "drop"
+    ) -> None:
+        
+        if settings_mode not in ["drop", "onehot"]:
+            raise ValueError(f"settings mode solo es drop o onehot, se tiene: {settings_mode}")
+
+        self.n_regimenes = n_regimenes
+        self.random_state = random_state
+        self.n_init = n_init
+        self.eps = eps
+        self.settings_mode = settings_mode
+        self._fitted = False
+
+    def fit(self, df: pd.DataFrame, y = None) -> "OperatingRegimeNormalizer":
+        """
+        Aprende del artefacto ORN solo con los datos de entrenamiento
+
+        Ajusta: Escalador de settings, KMeans y tablas con la media y desviación estándar por (regimen, sensor)
+
+        Args:
+            df: pd.DataFrame de TRAIN con settings, sensores y columnas base
+        
+        Returns:
+            self para poder ejecutar un fit_transform
+
+        Raises:
+            ValueError si faltan columnas requeridas
+        """
+
+        required = {"unit_number", "time", *self.SETTINGS_COLS} # es porque es una variable global?
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(f"ORN: faltan columnas requeridas: {missing}")
+
+        self.sensor_cols_ = sorted(c for c in df.columns if c.startswith("sensor_"))
+        if not self.sensor_cols_:
+            raise ValueError(f"No se tienen columnas de sensor que normalizar")
+
+        # Paso 1: escalar los settings
+        self.settings_scaler_ = StandardScaler()
+        settings_scaled = self.settings_scaler_.fit_transform(df[self.SETTINGS_COLS])
+
+        # Paso 2: KMeans para etiquetar el régimen del ciclo
+        self.kmeans_ = KMeans(
+            n_clusters = self.n_regimenes,
+            random_state = self.random_state,
+            n_init = self.n_init
+        )
+        labels = self.kmeans_.fit_predict(settings_scaled)
+
+        # Paso 3: mu y sigma por cada regimen
+        sensors_df = df[self.sensor_cols_].copy()
+        sensors_df["regimen"] = labels
+        self.regime_means_ = sensors_df.groupby("regimen").mean()                         
+        self.regime_stds_ = sensors_df.groupby("regimen").std().fillna(self.eps).clip(lower=self.eps)
+
+        self._fitted = True
+        return self
+
+    def transform(self, df : pd.DataFrame):
+        """
+        Aplicar el artefacto aprendido en fit() sin reajustar nada
+
+        LOs settings del DataFrame se asugnan al cluster más cercano con kmeans.predict() y los
+        sensores se estandarizan con las tablas mu/sigma del train.
+
+        Args:
+            df: pd.DataFrame(train ya ajustado o test nunca visto)
+        
+        Returns:
+            Nuevo DataFrame con los sensores normalizados y los settings gestionados por settings_mode
+
+        Raises:
+            RuntimeError si se llama fit antes que train
+            ValueError si faltan sensores en el fit
+        """
+
+        if not self._fitted:
+            raise RuntimeError("No se puede ajustar sin antes entrenar")
+
+        missing = [c for c in self.sensor_cols_ if c not in df.columns]
+        if missing:
+            raise ValueError(f"ORN: faltan sensores vistos en fit: {missing}")
+
+        out = df.copy()
+
+        # Asignación de régimen del test con el MISMO escalador y K-Means
+        settings_scaled = self.settings_scaler_.transform(out[self.SETTINGS_COLS])
+        labels = self.kmeans_.predict(settings_scaled)
+
+        # z-score condicional: (x - mu_del_régimen) / sigma_del_régimen
+        # .loc[labels] trae la fila mu/sigma de CADA fila según su régimen
+        mu = self.regime_means_.loc[labels][self.sensor_cols_].to_numpy()
+        sigma = self.regime_stds_.loc[labels][self.sensor_cols_].to_numpy()
+        out[self.sensor_cols_] = (out[self.sensor_cols_].to_numpy() - mu) / sigma
+
+        # Gestión de los settings según settings_mode
+        if self.settings_mode == "drop":
+            out = out.drop(columns=self.SETTINGS_COLS)
+        elif self.settings_mode == "onehot":
+            regime_dummies = pd.get_dummies(
+                pd.Categorical(labels, categories=range(self.n_regimenes)),
+                prefix="regime", dtype=float,
+            )
+            regime_dummies.index = out.index
+            out = out.drop(columns=self.SETTINGS_COLS)
+            out = pd.concat([out, regime_dummies], axis=1)
+
+        return out
 
 
 def create_groups(df: pd.DataFrame) -> np.ndarray:
@@ -176,7 +316,6 @@ def full_preprocessing(subset: str = "FD001", config_path: str = "configs/config
         'rul' : rul,
         'config' : config
     }
-
 
 
 if __name__ == "__main__":

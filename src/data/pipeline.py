@@ -4,7 +4,7 @@ import logging
 import pandas as pd
 
 from src.data.loader import load_cmapss
-from src.data.preprocessing import remove_constant_sensors, compute_piecewise_rul
+from src.data.preprocessing import remove_constant_sensors, compute_piecewise_rul, OperatingRegimeNormalizer
 from src.features.engineering import compute_rolling_stats, compute_trends
 
 logger = logging.getLogger(__name__)
@@ -34,12 +34,18 @@ def prepare_raw_data(config:dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
         train_df = remove_constant_sensors(train_df, sensors_to_remove)
         test_df = remove_constant_sensors(test_df, sensors_to_remove)
 
+    # Bloque de ORN
+    if config.get("data", {}).get("operating_normalization", False):
+        logger.info("Aplicando la normalización por regimen operativo ORN")
+        orn = OperatingRegimeNormalizer(n_regimenes = 6)
+        train_df = orn.fit_transform(train_df)
+        test_df = orn.transform(test_df)
+
     # Etiquetar RUL en entrenamiento
     logger.info(f"Calculando la etiqueta de rul con el rul_max = {rul_max}")
     train_df = compute_piecewise_rul(train_df, rul_max = rul_max)
 
     return train_df, test_df, rul_test_df
-
 
 
 def extract_features(df: pd.DataFrame, config: dict) -> pd.DataFrame:
