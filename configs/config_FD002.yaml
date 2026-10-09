@@ -37,7 +37,7 @@ data:
 
 # Configuracion de sensores
 sensors:
-  remove: []             # Pendiente de EDA - variabilidad operativa
+  remove: [1, 5, 6, 10, 16, 18, 19]  # Invariantes intra-regimen (EDA FD002)
 
 # Configuracion de Feature Engineering
 feature_engineering:
