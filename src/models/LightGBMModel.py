@@ -12,6 +12,7 @@ class LightGBMModel(SKLearnModel):
             learning_rate: float = 0.1,
             subsample: float = 0.8,
             n_jobs: int = -1,
+            random_state: int = 42,
             ):
         
         params = {
@@ -20,6 +21,7 @@ class LightGBMModel(SKLearnModel):
             "learning_rate": learning_rate,
             "subsample": subsample,
             "n_jobs": n_jobs,
+            "random_state": random_state,
             }
         model = lgb.LGBMRegressor(**params)
         super().__init__(model=model)

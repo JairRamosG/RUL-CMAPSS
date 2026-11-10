@@ -12,6 +12,7 @@ class XGBoostModel(SKLearnModel):
         learning_rate: float = 0.1,
         subsample: float = 0.8,
         n_jobs: int = -1,
+        random_state: int = 42,
         ):
 
         params = {
@@ -19,7 +20,8 @@ class XGBoostModel(SKLearnModel):
             "max_depth": max_depth,
             "learning_rate": learning_rate,
             "subsample": subsample,
-            "n_jobs": n_jobs
+            "n_jobs": n_jobs,
+            "random_state": random_state,
         }
 
         model = xgb.XGBRegressor(**params)

@@ -12,6 +12,7 @@ class RFModel(SKLearnModel):
         min_samples_split: int = 2,
         min_samples_leaf: int = 1,
         n_jobs: int = -1,
+        random_state: int = 42,
     ):
         params = {
             "n_estimators": n_estimators,
@@ -19,6 +20,7 @@ class RFModel(SKLearnModel):
             "min_samples_split": min_samples_split,
             "min_samples_leaf": min_samples_leaf,
             "n_jobs": n_jobs,
+            "random_state": random_state,
 }
         model = RandomForestRegressor(**params)
         super().__init__(model=model)
