@@ -61,7 +61,7 @@ def build_model(
         return LSTMModel(num_features=num_features, **params)
 
     # Memorias asociativas
-    elif model_name == "asociative_memory":
+    elif model_name == "associative_memory":
         raise NotImplementedError("Hay que programar la memoria asociativa")
 
     else:
