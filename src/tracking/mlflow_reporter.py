@@ -64,8 +64,8 @@ def log_model_run_to_MLflow(
         params_to_log = {
             "rul_max": config.get("data", {}).get("rul_max", 125),
             "window_size": config.get("data", {}).get("window_size", 30),
-            "cv_folds": config.get("evaluation", {}).get("cv_folds", 10),
-            "random_seed": config.get("experiment", {}).get("random_seed", {}),
+            "cv_folds": len(cv_res.get("fold_metrics", [])),
+            "random_seed": config.get("experiment", {}).get("random_seed", 42),
             "n_features_selected": int(n_features_selected),
         }
         for k, v in m_params.items():
@@ -82,7 +82,7 @@ def log_model_run_to_MLflow(
             "cv_nasa_mean": summary.get("cv_nasa_mean", 0.0),
             "train_time_mean_sec": summary.get("train_time_mean", 0.0),
             "peak_ram_mean_mb": summary.get("peak_ram_mean", 0.0),
-            "latency_mean_sec_engine": summary.get("latency_ms_mean", 0.0)
+            "latency_mean_ms_engine": summary.get("latency_ms_mean", 0.0)
         })
 
         # Métricas sobre el test oficial
@@ -90,7 +90,7 @@ def log_model_run_to_MLflow(
             "test_rmse": test_res.get("test_rmse", 0.0),
             "test_mae": test_res.get("test_mae", 0.0),
             "test_nasa_score": test_res.get("test_nasa_score", 0.0),
-            "test_latency_sec_engine": test_res.get("test_latency_ms_engine", 0.0)
+            "test_latency_ms_engine": test_res.get("test_latency_ms_engine", 0.0)
         })
     logger.info(f"Resultados del modelo {model_name.upper()} registrados en MLflow")
 
