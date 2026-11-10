@@ -32,7 +32,7 @@ description: >
 # Parametros de datos
 data:
   data_dir: "datos"
-  rul_max: 125           # Limite superior para Piecewise RUL (ciclos)
+  rul_max: 130           # Limite superior para Piecewise RUL (ciclos; 130 para FD002 segun Zhou et al. 2023)
   window_size: 30        # Tamano de ventana temporal (ciclos)
   operating_normalization: true
 
