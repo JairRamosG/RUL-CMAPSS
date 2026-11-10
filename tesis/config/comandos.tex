@@ -1,0 +1,34 @@
+% =============================================================================
+% COMANDOS PERSONALIZADOS — Atajos y convenciones del documento
+% =============================================================================
+
+% --- Ruta raíz de las figuras ---
+\graphicspath{{figuras/}{figuras/logos/}{figuras/eda/}{figuras/resultados/}{figuras/arquitectura/}}
+
+% --- Ruta raíz de las tablas ---
+\newcommand{\tablasdir}{tablas/}
+
+% --- Comando para incluir una figura con caption y label consistentes ---
+% Uso: \figura{ancho}{archivo}{caption}{label}
+\newcommand{\figura}[4]{%
+    \begin{figure}[H]%
+        \centering%
+        \includegraphics[width=#1]{#2}%
+        \caption{#3}%
+        \label{fig:#4}%
+    \end{figure}%
+}
+
+% --- Comando para incluir una tabla desde archivo .tex ---
+% Uso: \incluirtabla{archivo}
+\newcommand{\incluirtabla}[1]{%
+    \input{\tablasdir#1}%
+}
+
+% --- Abreviaturas frecuentes del dominio ---
+\newcommand{\RUL}{\textit{RUL}}
+\newcommand{\MLflow}{MLflow}
+\newcommand{\CMAPSS}{C-MAPSS}
+
+% --- Comando para métricas con formato consistente ---
+\newcommand{\metricab}[1]{\texttt{#1}}

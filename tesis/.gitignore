@@ -1,0 +1,22 @@
+# =============================================================================
+# Archivos auxiliares de compilación LaTeX (no se versionan)
+# Solo se suben los fuentes .tex, las figuras y la bibliografía .bib
+# =============================================================================
+
+# Auxiliares de pdflatex / latexmk / biber
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# PDF compilado (regenerable desde el fuente .tex)
+*.pdf

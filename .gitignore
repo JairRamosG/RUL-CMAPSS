@@ -41,6 +41,9 @@ references/
 *Redacci*
 redaccion/
 
+# Plantilla de referencia de un tercero (no se versiona)
+Tesis_akatzin/
+
 # Artefactos de build y lockfile local
 *.egg-info/
 uv.lock

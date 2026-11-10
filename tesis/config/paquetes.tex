@@ -1,0 +1,56 @@
+% =============================================================================
+% PAQUETES — Configuración de dependencias de LaTeX
+% =============================================================================
+
+% --- Idioma español (y soporte para abstract en inglés) ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish, es-tabla]{babel}
+
+% --- Tipografía ---
+\usepackage{lmodern}          % Fuente Latin Modern (mejor que la default)
+\usepackage{microtype}        % Mejora el espaciado tipográfico
+
+% --- Márgenes y geometría de página ---
+\usepackage[a4paper, margin=2.5cm]{geometry}
+
+% --- Matemáticas ---
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+% --- Gráficos y figuras ---
+\usepackage{graphicx}         % \includegraphics
+\usepackage{float}            % Control de posición de figuras con [H]
+\usepackage{subcaption}       % Subfiguras lado a lado
+
+% --- Colores ---
+\usepackage{xcolor}           % \color y \definecolor
+
+% Color institucional (IPN / CIC): guinda
+\definecolor{guinda-ipn}{RGB}{108, 29, 69}
+
+% --- Tablas ---
+\usepackage{booktabs}         % Líneas horizontales profesionales (\toprule, \midrule)
+\usepackage{longtable}        % Tablas que ocupan varias páginas
+\usepackage{array}            % Control de ancho de columnas
+
+% --- Código fuente (para el Anexo B) ---
+\usepackage{listings}
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numbersep=5pt,
+    captionpos=b,
+}
+
+% --- Hipervínculos (siempre al final) ---
+\usepackage[hidelinks]{hyperref}
+
+% --- Bibliografía con biblatex (backend biber) ---
+% Estilo numeric (IEEE). Para APA 7ma, cambiar a style=apa (requiere biblatex-apa)
+\usepackage[backend=biber, style=numeric, sorting=none]{biblatex}
+\usepackage{csquotes}         % Requerido por biblatex para citas con comillas
+\addbibresource{referencias/bibliografia.bib}

@@ -1,0 +1,64 @@
+% =============================================================================
+% TESIS DE MAESTRÍA — Archivo Principal
+% Evaluación Experimental Multi-Dimensional de una Memoria Asociativa
+% vs. Algoritmos Baseline para la Estimación de RUL en C-MAPSS
+%
+% Compilación (en orden, con biblatex+biber):
+%   latexmk -pdf main.tex        (recomendado, LaTeX Workshop de VSCode lo hace solo)
+%   o manualmente:
+%     1. pdflatex main.tex
+%     2. biber main
+%     3. pdflatex main.tex
+%     4. pdflatex main.tex
+% =============================================================================
+
+\documentclass[12pt, letterpaper, oneside]{book}
+
+% --- Configuración global (paquetes y estilo) ---
+\input{config/paquetes}
+\input{config/comandos}
+
+\begin{document}
+
+% =============================================================================
+% PARTE PRELIMINAR (frontmatter)
+% =============================================================================
+\frontmatter
+
+\input{frontmatter/portada}
+\input{frontmatter/dedicatoria}
+\input{frontmatter/agradecimientos}
+\input{frontmatter/resumen}
+\input{frontmatter/abstract}
+
+% Índices generales
+\tableofcontents
+\listoffigures
+\listoftables
+
+% =============================================================================
+% CUERPO PRINCIPAL (capítulos)
+% =============================================================================
+\mainmatter
+
+\input{capitulos/01_introduccion}
+\input{capitulos/02_marco_teorico}
+\input{capitulos/03_diseno_experimental}
+\input{capitulos/04_resultados}
+\input{capitulos/05_analisis_discusion}
+\input{capitulos/06_conclusiones}
+
+% =============================================================================
+% REFERENCIAS BIBLIOGRÁFICAS
+% =============================================================================
+\printbibliography
+
+% =============================================================================
+% ANEXOS
+% =============================================================================
+\appendix
+\input{anexos/anexo_a_hiperparametros}
+\input{anexos/anexo_b_codigo}
+\input{anexos/anexo_c_resultados}
+
+\end{document}
