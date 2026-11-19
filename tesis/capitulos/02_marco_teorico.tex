@@ -154,23 +154,27 @@ Los registros que provienen de un equipo industrial no se comportan como observa
 % -----------------------------------------------------------------------------
 \section{Etapas de preprocesamiento de series temporales}
 
-% TODO (autor): complementar esta explicación teórica de las transformaciones.
-% Borrador inicial; el autor continuará el desarrollo.
-Antes de describir las etapas concretas del preprocesamiento, conviene precisar qué se entiende por una transformación en el contexto de las series temporales de sensores. Una transformación es una función que se aplica a cada observación, o a una ventana de observaciones, con el propósito de representar la señal de una forma más adecuada para el modelo que la va a consumir. Su objetivo no es alterar la información contenida en la señal, sino reorganizarla, escalarla o completarla para que el algoritmo de aprendizaje pueda explotarla.\\[.15cm]
+Antes de describir las etapas del preprocesamiento, conviene precisar qué se entiende por una transformación en el contexto de las series de tiempo de sensores. Una transformación es una función $f$ que se aplica a los datos con el propósito de representar la señal de una forma más adecuada para el modelo que se decide que la va a consumir. Su objetivo no es alterar la información contenida en la señal sino reorganizarla, escalarla o completarla para que el algoritmo de aprendizaje pueda aprovecharla de una mejor manera.\\[.15cm]
 
-Las transformaciones se pueden agrupar según el problema que atienden. Las transformaciones de escala, como la normalización y la estandarización, buscan que todas las variables tengan una magnitud comparable, de modo que ninguna domine el cálculo por el simple hecho de medirse en unidades mayores. Las transformaciones de suavizado, como los filtros de media móvil o el suavizado exponencial, reducen la variabilidad que no aporta información sobre la degradación. Las transformaciones de completado, como la interpolación o la imputación, reconstruyen los valores ausentes para que la serie conserve su continuidad temporal. Por último, las transformaciones de representación, como el ventaneo o la extracción de estadísticos agregados, convierten la secuencia en un conjunto de vectores que el modelo puede procesar.\\[.15cm]
+Las transformaciones se pueden agrupar según el problema que atienden. Las transformaciones de \textbf{escala}, como la normalización y la estandarización, buscan que todas las variables tengan una magnitud comparable, de modo que ninguna domine el cálculo por el simple hecho de medirse en unidades mayores. Las transformaciones de \textbf{suavizado}, como los filtros de media móvil o el suavizado exponencial, reducen la variabilidad que no aporta información sobre la degradación. Las transformaciones de \textbf{completado}, como la interpolación o la imputación, reconstruyen los valores ausentes para que la serie conserve su continuidad temporal. Y por último, las transformaciones de \textbf{representación}, como el ventaneo o la extracción de estadísticos agregados, convierten la secuencia en un conjunto de vectores que el modelo puede procesar.\\[.15cm]
 
-La elección de las transformaciones no es neutral: cada una introduce supuestos sobre los datos y condiciona lo que el modelo puede aprender. Por esa razón, en las subsecciones siguientes se describe cada etapa junto con los supuestos que la sustentan.
+Cada uno de estos grupos de transformaciónes descansa en supuestos que no siempre se cumplen, y de ellos depende que la transformación ayude o destruya la información útil. Por ejemplo, el suavizado supone que la variabilidad de alta frecuencia es ruido y no señal; es decir que si la ventana es demasiado amplia, la tendencia de degradación que es precisamente la información que se quiere estimar se difumina junto con el ruido. El completado supone que el valor ausente puede inferirse de los valores vecinos; cuando la ausencia coincide con el inicio de una falla, la imputación puede inventar una degradación que no existe o, peor aún, ocultarla. El escalamiento es la transformación menos destructiva, porque es monótona y preserva el orden de los valores, pero sigue dependiendo de los parámetros que se elijan. La representación, por su parte, decide qué parte de la historia verá el modelo: una ventana demasiado corta oculta la tendencia y una demasiado larga incorpora ruido y eleva el costo computacional.\\[.15cm]
+
+También es importante señalar que no todas las transformaciónes son necesarias para todos los algoritmos. Los modelos basados en árboles, como Random Forest \cite{breiman2001} y XGBoost \cite{chen2016}, dividen el espacio de entrada mediante umbrales sobre cada variable, de modo que son invariantes a las transformaciones monótonas de sus entradas: escalar o estandarizar los datos no cambia la estructura del árbol que se construye ni las predicciones que produce. Para estos modelos el escalamiento solo añade un costo computacional. En cambio, los modelos que dependen de distancias o de gradientes como las redes neuronales recurrentes o la regresión con vectores de soporte, sí son sensibles a la escala, y una variable sin escalar puede dominar el aprendizaje por el simple hecho de medirse en unidades mayores.\\[.15cm]
+
+Finalmente, el orden en que se ajustan los parámetros de una transformación es tan importante como la transformación misma. Que una transformación sea puntual no la vuelve automáticamente segura: su fórmula no mezcla observaciones, pero sus parámetros, como la media y la desviación estándar se estiman a partir de algún conjunto de datos. Por eso los parámetros deben calcularse únicamente con el conjunto de entrenamiento y aplicarse después, sin recalcularlos, sobre validación y prueba. Hacerlo sobre el conjunto completo, una práctica frecuente y silenciosa, filtra información del futuro hacia el entrenamiento y produce métricas optimistas que no se sostienen en operación; el efecto de estas decisiones de preprocesamiento sobre el desempeño de los modelos de RUL ha sido documentado de manera sistemática \cite{ruvaifa2026}.\\[.15cm]
+
+La elección de las transformaciones no es neutral: cada una introduce supuestos sobre los datos y el fenómeno que se está estudiando y condiciona lo que el modelo puede aprender. Por esa razón, en las subsecciones siguientes se describe cada etapa junto con los supuestos que la sustentan.
 
 \subsection{Limpieza de datos}
 
-Esta etapa tiene como objetivo detectar y corregir problemas en los datos brutos tal y como son recibidos de la fuente de sensores. Las operaciones típicamente realizadas en este proceso son:\\[.15cm]
+Esta etapa tiene como objetivo detectar y corregir los problemas en los datos brutos tal y como son recibidos de la fuente de sensores. Las operaciones típicamente realizadas en este proceso son:\\[.15cm]
 
-\textbf{Detección y tratamiento de valores atípicos:} Se pueden implementar métodos estadísticos como rango intercuartil, puntuación Z, desviación absoluta mediana o también basados en modelos como el Isolation Forest. En esta parte se puede necesitar de la eliminación de registros, imputación por media o interpolación.\\[.15cm]
+\textbf{Detección y tratamiento de valores atípicos:} Se pueden implementar métodos estadísticos como rango intercuartil, puntuación Z, diagramas box-plot o también basados en modelos como el Isolation Forest. En esta parte se puede necesitar de la eliminación de registros, imputación por media o interpolación.\\[.15cm]
 
-\textbf{Imputación de datos faltantes:} Para lagunas que son cortas, la interpolación lineal o cúbica suele ser suficiente para obtener la información resultante. Para el caso de lagunas más largas, se puede recurrir a la imputación por series similares como el caso del K-NN temporal o también de modelos autoregresivos como el MICE.\\[.15cm]
+\textbf{Imputación de datos faltantes:} Para lagunas que son cortas, la interpolación lineal o cúbica suele ser suficiente para obtener la información resultante. Para el caso de lagunas más largas, se puede recurrir a la imputación por series similares como el caso del K-NN temporal \cite{oehmcke2016} o también de modelos autoregresivos como el MICE \cite{vanbuuren2011}.\\[.15cm]
 
-\textbf{Eliminación de ruido:} Se puede hacer uso de filtro digitales como media móvil o suavizado exponencial para reducir la variabilidad no informativa\\[.15cm]
+\textbf{Eliminación de ruido:} Se puede hacer uso de filtro digitales como media móvil donde se ponderan por igual los puntos dentro de una ventana o suavizado exponencial para reducir la variabilidad no informativa otorgando un peso mayor a las observaciones que son más recientes, pero decayendo exponencialmente hacia el pasado \cite{nielsen2019}\\[.15cm]
 
 \subsection{Normalización y estandarización}
 
@@ -193,13 +197,28 @@ x' = \frac{x - \mu}{\sigma}
 
 \subsection{Validación respecto al orden temporal}
 
-Los errores más comunes en el modelado de series de tiempo es la validación con datos de manera incorrecta, en donde al igual que en tareas de regresión, se implementa una aleatorización para la formación de conjuntos de entrenamiento y prueba. En el caso de las series de tiempo, la manera correcta para hacer una validación de los datos es mediante 2 técnicas:\\[.15cm]
+Un error común al modelar series de tiempo es validarlas como si se tratara de datos tabulares donde se aplica una partición aleatoria o una validación cruzada convencional para formar los conjuntos de entrenamiento y prueba, por lo que se destruye la estructura temporal de la serie.\\[.15cm]
 
-\textbf{Ventana expansible}
-En este método de validación el conjunto de entrenamiento va creciendo con el tiempo, mientras se van incorporando nuevas observaciones sin eliminar las anteriores. Tiene la ventaja de que aprovecha toda la información histórica pero la desventaja de incluir datos que son obsoletos si hay cambios en la tendencia de la serie en cuestión.\\[.15cm]
+El supuesto de independencia e idéntica distribución (\textit{i.i.d.}) que sostiene esas particiones no se cumple en una serie de tiempo. Las observaciones consecutivas presentan dependencia temporal y autocorrelación de tal manera que un registro comparte información con sus vecinos inmediatos. Si esos vecinos quedan repartidos entre entrenamiento y prueba, el modelo se evalúa sobre datos de la cual la información ya se vió durante el entrenamiento, y las estimaciones de error resultan engañosas.\\[.15cm]
 
-\textbf{Ventana deslizante}
-En este método de validación el conjunto de entrenamiento conserva un tamaño fijo para cada uno de los folds, el cuál se va recorriendo durante los valores de la serie y no toma en cuenta valores pasados que pueden aportar poca información para el tiempo actual en el que se está llevando un nuevo entrenamiento. Este método es más útil para los casos donde la serie tiene cambio notorios en su comportamiento.\\[.15cm]
+Para preservar el orden cronológico se distinguen dos familias de estrategias \cite{joseph2022}. La primera es el \textit{holdout} temporal, en el que el conjunto de prueba se reserva siempre en el extremo más reciente de la serie y el de entrenamiento se toma de los datos anteriores según cómo se construya ese conjunto se distingue entre ventana expansiva y ventana deslizante, y en ambos casos puede incorporarse un rezago o \textit{gap} entre el final del entrenamiento y el inicio de la validación para aumentar la independencia entre ambos. La segunda son las variantes de validación cruzada adaptadas al orden temporal, como la validación cruzada por bloques (\textit{Blocked Cross-Validation}), que divide la serie en bloques contiguos y respeta su secuencia en lugar de barajar los registros.\\[.15cm]
+
+La elección entre ambas depende del comportamiento de la serie. En series no estacionarias, con componentes exógenos o con memoria histórica suelen preferirse los esquemas de \textit{holdout} que respetan el orden cronológico. También se toma en cuenta que la longitud del periodo de validación debe reflejar el horizonte de predicción real del problema, porque validar sobre un tramo más corto que ese horizonte produce una estimación que no corresponde a la condición de operación.\\[.15cm]
+
+\textbf{Ventana expansiva}\\[.15cm]
+El conjunto de entrenamiento crece con el tiempo y en cada iteración se incorporan nuevas observaciones sin descartar las anteriores. Su ventaja es que aprovecha toda la información histórica disponible pero su desventaja es que incluye datos potencialmente obsoletos cuando la tendencia de la serie cambia.\\[.15cm]
+
+% TODO (autor): insertar diagrama de ventana expansiva (el bloque de entrenamiento crece y el de prueba avanza).
+
+\textbf{Ventana deslizante}\\[.15cm]
+El conjunto de entrenamiento conserva un tamaño fijo en cada iteración y se desplaza a lo largo de la serie, de modo que las observaciones más antiguas se descartan a medida que se incorporan las nuevas. Esto evita arrastrar valores que aportan poca información al momento del entrenamiento y resulta más adecuado cuando la serie presenta cambios notorios en su comportamiento.\\[.15cm]
+
+% TODO (autor): insertar diagrama de ventana deslizante (ventana de tamaño fijo que avanza).
+
+\textbf{Validación cruzada por bloques}\\[.15cm]
+La serie se divide en $k$ bloques contiguos de igual longitud y, en cada iteración, uno de ellos se reserva como prueba mientras los restantes forman el entrenamiento, sin barajar los registros en ningún momento. De este modo la validación conserva la estructura temporal dentro de cada bloque y permite obtener $k$ estimaciones en lugar de una sola; cuando se aplica sobre series con dependencia entre bloques vecinos, conviene además separar el entrenamiento de la prueba con un \textit{gap}.\\[.15cm]
+
+% TODO (autor): insertar diagrama de validación cruzada por bloques ($k$ bloques contiguos, uno como prueba por iteración).
 
 % -----------------------------------------------------------------------------
 % 2.6
