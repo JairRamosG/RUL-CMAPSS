@@ -106,17 +106,17 @@ cada contexto.
 
 \subsection{Falla}
 
-La norma ISO 14224 define a una falla como ``el cese de la capacidad de un elemento para desempeñar una función requerida'', además, en la práctica no se trata de un fenómeno binario, sino que existen diferentes grados de degradación  que se pueden clasificar en las siguientes maneras:
+La norma ISO 14224 \cite{iso14224} define a una falla como ``el cese de la capacidad de un elemento para desempeñar una función requerida'', además, en la práctica no se trata de un fenómeno binario, sino que existen diferentes grados de degradación  que se pueden clasificar en las siguientes maneras:
 
 \begin{itemize}
-    \item \textbf{Falla súbita:} Ocurre sin un previo aviso, generalmente por roturas de componentes, cortocircuitos, fatigas de carga.
-    \item \textbf{Falla gradual:} El equipo va perdiendo eficiencia, precision y velocidad de manera progresiva.
-    \item \textbf{Falla intermitente:} Falla intermitente: Se manifiesta y desaparece, dificultando así un correcto diagnóstico.
+    \item \textbf{Falla súbita:} Ocurre sin un previo aviso, y generalmente es por roturas de componentes, cortocircuitos o fatigas de carga.
+    \item \textbf{Falla gradual:} El equipo va perdiendo eficiencia, precision y velocidad de una manera progresiva.
+    \item \textbf{Falla intermitente:} Falla intermitente: Se manifiesta y desaparece, por lo que se dificulta hacer un diagnóstico correcto.
 \end{itemize}
 
 \subsection{Anomalía operativa}
 
-Una anomalía se puede entender como un patrón en los datos que no corresponde con el comportamiento normal esperado. A pesar de que no todas las anomalías corresponden a una falla inminente, su detección temprana es importante para los sistemas de alerta. Se puede clasificar de tres maneras:
+Una anomalía se puede entender como un patrón en los datos que no corresponde con el comportamiento normal esperado. A pesar de que no todas las anomalías corresponden a una falla inminente, su detección temprana es importante sobre todo para los sistemas de alerta. Estas se pueden clasificar de tres maneras:
 
 \begin{itemize}
     \item \textbf{Anomalía puntual:} Es un valor individual que es significativamente diferente del resto de la serie.
@@ -133,17 +133,19 @@ El tiempo de vida útil (Remaining Useful Life) se define como ``el tiempo medid
 % -----------------------------------------------------------------------------
 \section{Series temporales y preprocesamiento para datos de sensores}
 
-Los sistemas de mantenimiento predictivo se basan en tiempo real de datos históricos provenientes de sensores instalados en equipos industriales. Por su naturaleza, todos estos datos constituyen series de tiempo multivariadas. Estas son secuencias de mediciones ordenadas en el tiempo, donde cada instante registra múltiples variables físicas y está presente una relación temporal en cada medición. Hacer un modelado correcto de este tipo de datos es fundamental para poder realizar tareas de detección de anomalías y RUL para mantenimiento predictivo, ya que los algoritmos de aprendizaje automático implementados son sensibles a la calidad y estructura final de estos.
+Los sistemas de mantenimiento predictivo se basan en tiempo real de datos históricos provenientes de sensores instalados en equipos industriales. Por su naturaleza, todos estos datos constituyen series de tiempo multivariadas. Estas son secuencias de mediciones ordenadas en el tiempo, donde cada instante registra múltiples variables físicas y está presente una relación temporal en cada medición. Hacer un modelado correcto de este tipo de datos es fundamental para poder realizar tareas de detección de anomalías y RUL para mantenimiento predictivo, porque los algoritmos de aprendizaje automático implementados son sensibles a la calidad y estructura final de estos.
 
 \subsection{Características de los datos de sensores industriales}
 
+Los registros que provienen de un equipo industrial no se comportan como observaciones independientes ya que estosr arrastran las condiciones del proceso y entorno donde opera el equipo y del propio sistema de instrumentación. Por eso, antes de elegir un algoritmo o una técnica de preprocesamiento, conviene reconocer las características que suelen estar presentes en este tipo de datos, porque cada una impone una decisión de diseño sobre el modelado. Las cinco que se describen a continuación son las que mayor impacto tienen en la tarea de estimación del RUL.\\[.15cm]
+
 \textbf{Alta dimensionalidad:} Un equipo industrial moderno puede estar instrumentado con cientos de sensores para cada una de las variables de su proceso, estas generalmente son temperatura, presión, flujo, vibraciones, corriente eléctrica, velocidades de rotación, niveles de aceite entre otras. Esto resulta en vectores de entrada con muy alta dimensionalidad que pueden provocar dificultades para algoritmos basados en distancias, así como un aumento en el costo computacional.\\[.15cm]
 
-\textbf{Dependencia temporal y autocorrelación:} A diferencia de los datos tabulares de problemas del paradigma supervisado de clasificación y regresión, en las series temporales el orden de las observaciones si es relevante. Cada una de las mediciones está correlacionada con sus valores pasados (autocorrelación) y con otras variables (correlación cruzada). Los algoritmos que ignoran estas dependencias como lo son los Random Forest pueden perder información que es crítica.\\[.15cm]
+\textbf{Dependencia temporal y autocorrelación:} A diferencia de los datos tabulares de problemas del paradigma supervisado de clasificación o regresión, en las series temporales el orden de las observaciones si es relevante. Cada una de las mediciones está correlacionada con sus valores pasados (autocorrelación) y con otras variables (correlación cruzada). Los algoritmos que ignoran estas dependencias pueden perder información que sería de mucha ayuda para obtener buenos resultados.\\[.15cm]
 
-\textbf{Ruido y valores atípicos:} Los sensores industriales operan en entornos considerados como hostiles, donde pueden haber situaciones con altas temperaturas, vibraciones, interferencia electromagnética, humedad y polvo entre muchas otras. Es por esto que se introduce un ruido en las mediciones y se generan valores atípicos debido a los errores de medición o diversos eventos transitorios. La capacidad de distinguir entre un outlier debido a una falla en un sensor o a un outlier que indica el inicio de una degradación es el principal desafío de el mantenimiento predictivo.\\[.15cm]
+\textbf{Ruido y valores atípicos:} Los sensores industriales operan en entornos considerados como hostiles, donde pueden haber situaciones con altas temperaturas, vibraciones, interferencia electromagnética, humedad y polvo entre muchas otras. Es por esto que se considera que siempre va a existir un ruido intrínseco en las mediciones y se generan valores atípicos debido a errores de medición o diversos eventos transitorios. La capacidad de distinguir entre un outlier debido a una falla en un sensor o a un outlier que indica el inicio de una degradación es el principal desafío de el mantenimiento predictivo.\\[.15cm]
 
-\textbf{Desbalance entre ciclos normales y de falla:} La mayor parte de las observaciones corresponden a condiciones de operación normal o de desgaste leve, mientras que las observaciones cercanas a una falla son muy escasas. Esta distribución desbalanceada hace que los modelos tengan una tendencia a subestimar el RUL en la fase final de vida de un equipo industrial, a menos que se apliquen correctamente técnicas de remuestreo o también de ponderación.\\[.15cm]
+\textbf{Desbalance entre ciclos normales y de falla:} Debido a que en la naturaleza de los procesos industriales la mayor parte de las observaciones corresponden a condiciones de operación normal o de desgaste leve, las observaciones cercanas a una falla son muy escasas. Esta distribución desbalanceada hace que los modelos tengan una tendencia a subestimar el RUL en la fase final de vida de un equipo industrial, a menos que se apliquen correctamente técnicas de remuestreo o también de ponderación.\\[.15cm]
 
 \textbf{Datos faltantes:} Por diversas razones como fallas de comunicación, mantenimiento de los sensores de medición o saturación de un canal de datos, es muy común encontrar lagunas en las series de tiempo. Los valores faltantes pueden presentarse de forma aleatoria (Missing at random), o también sistemática (Missing not at random).\\[.15cm]
 
