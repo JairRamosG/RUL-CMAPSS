@@ -1,60 +1,466 @@
 % =============================================================================
 % CAPÍTULO 2 — Marco Teórico y Estado del Arte
+%
+% NOTA: el cuerpo de este capítulo es la transcripción literal del documento
+% de curso del autor (Capítulo_II.pdf). NO se corrigió su redacción ni su
+% ortografía por instrucción expresa del autor.
 % =============================================================================
 
 \chapter{Marco Teórico y Estado del Arte}
 
+% -----------------------------------------------------------------------------
+% 2.1
+% -----------------------------------------------------------------------------
 \section{Mantenimiento Industrial, conceptos y evolución}
 
+El mantenimiento industrial, según la norma ISO 14224 (2016) \cite{iso14224} se define como ``el conjunto de todas las acciones técnicas, administrativas y de supervisión destinadas
+a mantener o restaurar un equipo, máquina o sistema de un estado donde pueda cumplir una función requerida''. Esta definición abarca no solo la reparación de fallas, sino también la inspección, 
+monitoreo, lubricación, calibración, reemplazo de componentes y también la gestión de repuestos.\\[.15cm]
+
+Desde un punto de vista equivocado, podemos entender al mantenimiento como un costo a minimizar, pero en realidad se trata de una inversión estratégica que tiene un impacto directo 
+para las empresas en la disponibilidad de sus activos, la seguridad de sus operadores, la calidad de sus productos, el cumplimiento ambiental al que se encuentran sujetos y también a 
+la competitividad frente a otras empresas. De tal manera que, en industrias con procesos continuos como lo son la petroquímica, generación eléctrica o minería, una hora de parada de 
+procesos que no sea planificada puede llegar a representar pérdidas económicas del orden de decenas de miles de millones de pesos.
+
+% -----------------------------------------------------------------------------
+% 2.2
+% -----------------------------------------------------------------------------
 \section{Evolución histórica de las estrategias de mantenimiento}
 
+La evolución de las estrategias de mantenimiento son un reflejo de una transición que va desde enfoques reactivos hacia otro enfoque que implementa el uso de tecnologías modernas. 
+La primera de estas estrategias es denominada como ``Mantenimiento correctivo'' o ``Reactivo'' y proviene desde los principios de industrialización, 
+el cual tiene un enfoque de reparar un equipo cuando este ya presentó una falla. En este escenario no existe ninguna planificación ni personal especializado. 
+Hoy en día, empresas de países en desarrollo o con equipos críticos cuyas fallas no implican riesgos de seguridad o pérdidas económicas mayores siguen implementando este tipo de 
+enfoque por su simplicidad administrativa y nula inversión en planificación. Pero es el caso de equipos críticos como turbinas, compresores y hornos donde este enfoque no es 
+aceptable por los costos y riesgos asociados en paradas no planeadas.\\[.15cm]
+
+% TODO (autor): colocar correctivo.png en tesis/figuras/arquitectura/ y descomentar.
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.5\textwidth]{correctivo.png}
+%     \caption{Proceso del mantenimiento correctivo}
+%     \label{fig:correctivo}
+% \end{figure}
+
+Otro de los enfoques existentes es el de ``Mantenimiento basado en tiempo'' o ``Preventivo'', el cuál surgió después de la segunda guerra mundial por la producción 
+en masa y el aumento en la complejidad mecánica en las industrias. La idea surgió con intervenir equipos antes de que estos presenten fallas siguiendo calendarios 
+fijos o bitácoras de operación con tiempos marcados por ciclos de tiempo. Este enfoque tiene la capacidad de reducir fallas sorpresivas pero también introduce dos 
+problemas fundamentales:
+
+\begin{itemize}
+    \item \textbf{Sobremantenimiento:} Se reemplazan componentes que aún tienen vida útil restante, desperdiciando recursos materiales y mano de obra, 
+    al reemplazar componente o equipos que podrían haber durado mucho más tiempo en funcionamiento.
+    \item \textbf{Submantenimiento:} Al tratarse de calendarios fijos, no se consideran las condiciones reales de el ciclo de operación de los equipos 
+    industriales como cargas, contaminación, vibraciones, calidad de lubricantes o cualquier otra variable presente en un proceso. Una máquina opera en 
+    condiciones que son adversas y se puede presentar una falla mucho antes de la siguiente intervención que esté programada.
+\end{itemize}
+
+A pesar de estas limitaciones, este tipo de enfoque de mantenimiento sigue siendo ampliamente utilizado en la industria, especialmente en plantas con procesos 
+estables y donde es difícil justificar la inversión de sensores o sistemas de monitoreo de las variables operativas relacionadas a un proceso industrial.\\[.15cm]
+
+% TODO (autor): colocar preventivo.png en tesis/figuras/arquitectura/ y descomentar.
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.5\textwidth]{preventivo.png}
+%     \caption{Proceso del mantenimiento preventivo}
+%     \label{fig:preventivo}
+% \end{figure}
+
+El tercer enfoque es el llamado ``Mantenimiento basado en condiciones'' o ``Mantenimiento predictivo'', el cuál tuvo aparición a partir de la implementación de 
+sistemas de monitoreo en los que se implementan sensores de visión, temperatura, ultrasonido, termografía, análisis de aceite, además de la aparición de 
+computadoras industriales. Con estos dispositivos, se hizo posible monitorear la salud de equipos industriales en tiempo real y predecir cuando es que se 
+alcanzará una falla. Este tipo de mantenimiento se basa en la premisa de que las fallas no son instantáneas, sino que siguen un proceso de degradación que 
+puede ser detectado mediante el análisis de tendencias.\\[.15cm]
+
+Según la  Association for Maintenance Professionals \cite{campbell2001}, el mantenimiento predictivo se define como ``Un programa de mantenimiento que recomienda 
+acciones basadas en la información recolectada a través del monitoreo de condiciones'', y este tiene ventajas que son significativas en comparación del 
+los enfoques anteriores:
+
+\begin{itemize}
+    \item Solo se interviene el equipo cuando realmente es necesario, maximizando la vida útil de los componentes.
+    \item Se reducen drásticamente tiempos de inactividad no planificados
+    \item Se pueden programar las intervenciones en ventanas de producción baja para optimizar recursos
+\end{itemize}
+
+En un principio para el mantenimiento con este enfoque se utilizaron umbrales fijos como indicadores, pero la evolución natural es el mantenimiento predictivo 
+basado en aprendizaje automático, donde le sistema aprende patrones complejos de degradación a partir de datos históricos y estima el tiempo de vida útil 
+restante de forma continua.\\[.15cm]
+
+% TODO (autor): colocar predictivo.png en tesis/figuras/arquitectura/ y descomentar.
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.5\textwidth]{predictivo.png}
+%     \caption{Proceso del mantenimiento predictivo}
+%     \label{fig:predictivo}
+% \end{figure}
+
+El ``Mantenimiento inteligente'' apareció con la irrupción del Internet de las Cosas Industrial (IIoT), la computación en la nube, el big data y la inteligencia 
+artificial, por lo que el mantenimiento predictivo se ha transformado a mantenimiento inteligente, cuyos sistemas tienen las siguientes características: 
+Sensores de bajo costo, gemelos digitales y comparación de múltiples algoritmos en un mismo flujo de datos, para poder hacer una selección de el más preciso en 
+cada contexto.
+
+% -----------------------------------------------------------------------------
+% 2.3
+% -----------------------------------------------------------------------------
 \section{Conceptos fundamentales}
+
 \subsection{Falla}
+
+La norma ISO 14224 define a una falla como ``el cese de la capacidad de un elemento para desempeñar una función requerida'', además, en la práctica no se trata de un fenómeno binario, sino que existen diferentes grados de degradación  que se pueden clasificar en las siguientes maneras:
+
+\begin{itemize}
+    \item \textbf{Falla súbita:} Ocurre sin un previo aviso, generalmente por roturas de componentes, cortocircuitos, fatigas de carga.
+    \item \textbf{Falla gradual:} El equipo va perdiendo eficiencia, precision y velocidad de manera progresiva.
+    \item \textbf{Falla intermitente:} Falla intermitente: Se manifiesta y desaparece, dificultando así un correcto diagnóstico.
+\end{itemize}
+
 \subsection{Anomalía operativa}
+
+Una anomalía se puede entender como un patrón en los datos que no corresponde con el comportamiento normal esperado. A pesar de que no todas las anomalías corresponden a una falla inminente, su detección temprana es importante para los sistemas de alerta. Se puede clasificar de tres maneras:
+
+\begin{itemize}
+    \item \textbf{Anomalía puntual:} Es un valor individual que es significativamente diferente del resto de la serie.
+    \item \textbf{Anomalía contextual:} Es un valor inusual específico en un contexto pero no en otro.
+    \item \textbf{Anomalía colectiva:} Una secuencia completa de valores es anómala aunque cada valor individual sea normal.
+\end{itemize}
+
 \subsection{Tiempo de vida útil (RUL)}
 
+El tiempo de vida útil (Remaining Useful Life) se define como ``el tiempo medido en ciclos, horas, kilómetros o cualquier otra variable de uso que un equipo o componente puede seguir operando de manera segura y eficiente antes de alcanzar un estado de falla, dadas las condiciones actuales de operación y su historial de degradación'' \cite{si2011}. La estimación del RUL es una tarea de regresión supervisada donde el modelo debe aprender la función que mapea las señales de sensores hacia el número restante de ciclos restantes.
+
+% -----------------------------------------------------------------------------
+% 2.4
+% -----------------------------------------------------------------------------
 \section{Series temporales y preprocesamiento para datos de sensores}
+
+Los sistemas de mantenimiento predictivo se basan en tiempo real de datos históricos provenientes de sensores instalados en equipos industriales. Por su naturaleza, todos estos datos constituyen series de tiempo multivariadas. Estas son secuencias de mediciones ordenadas en el tiempo, donde cada instante registra múltiples variables físicas y está presente una relación temporal en cada medición. Hacer un modelado correcto de este tipo de datos es fundamental para poder realizar tareas de detección de anomalías y RUL para mantenimiento predictivo, ya que los algoritmos de aprendizaje automático implementados son sensibles a la calidad y estructura final de estos.
+
 \subsection{Características de los datos de sensores industriales}
 
+\textbf{Alta dimensionalidad:} Un equipo industrial moderno puede estar instrumentado con cientos de sensores para cada una de las variables de su proceso, estas generalmente son temperatura, presión, flujo, vibraciones, corriente eléctrica, velocidades de rotación, niveles de aceite entre otras. Esto resulta en vectores de entrada con muy alta dimensionalidad que pueden provocar dificultades para algoritmos basados en distancias, así como un aumento en el costo computacional.\\[.15cm]
+
+\textbf{Dependencia temporal y autocorrelación:} A diferencia de los datos tabulares de problemas del paradigma supervisado de clasificación y regresión, en las series temporales el orden de las observaciones si es relevante. Cada una de las mediciones está correlacionada con sus valores pasados (autocorrelación) y con otras variables (correlación cruzada). Los algoritmos que ignoran estas dependencias como lo son los Random Forest pueden perder información que es crítica.\\[.15cm]
+
+\textbf{Ruido y valores atípicos:} Los sensores industriales operan en entornos considerados como hostiles, donde pueden haber situaciones con altas temperaturas, vibraciones, interferencia electromagnética, humedad y polvo entre muchas otras. Es por esto que se introduce un ruido en las mediciones y se generan valores atípicos debido a los errores de medición o diversos eventos transitorios. La capacidad de distinguir entre un outlier debido a una falla en un sensor o a un outlier que indica el inicio de una degradación es el principal desafío de el mantenimiento predictivo.\\[.15cm]
+
+\textbf{Desbalance entre ciclos normales y de falla:} La mayor parte de las observaciones corresponden a condiciones de operación normal o de desgaste leve, mientras que las observaciones cercanas a una falla son muy escasas. Esta distribución desbalanceada hace que los modelos tengan una tendencia a subestimar el RUL en la fase final de vida de un equipo industrial, a menos que se apliquen correctamente técnicas de remuestreo o también de ponderación.\\[.15cm]
+
+\textbf{Datos faltantes:} Por diversas razones como fallas de comunicación, mantenimiento de los sensores de medición o saturación de un canal de datos, es muy común encontrar lagunas en las series de tiempo. Los valores faltantes pueden presentarse de forma aleatoria (Missing at random), o también sistemática (Missing not at random).\\[.15cm]
+
+% -----------------------------------------------------------------------------
+% 2.5
+% -----------------------------------------------------------------------------
 \section{Etapas de preprocesamiento de series temporales}
+
+% TODO (autor): complementar esta explicación teórica de las transformaciones.
+% Borrador inicial; el autor continuará el desarrollo.
+Antes de describir las etapas concretas del preprocesamiento, conviene precisar qué se entiende por una transformación en el contexto de las series temporales de sensores. Una transformación es una función que se aplica a cada observación, o a una ventana de observaciones, con el propósito de representar la señal de una forma más adecuada para el modelo que la va a consumir. Su objetivo no es alterar la información contenida en la señal, sino reorganizarla, escalarla o completarla para que el algoritmo de aprendizaje pueda explotarla.\\[.15cm]
+
+Las transformaciones se pueden agrupar según el problema que atienden. Las transformaciones de escala, como la normalización y la estandarización, buscan que todas las variables tengan una magnitud comparable, de modo que ninguna domine el cálculo por el simple hecho de medirse en unidades mayores. Las transformaciones de suavizado, como los filtros de media móvil o el suavizado exponencial, reducen la variabilidad que no aporta información sobre la degradación. Las transformaciones de completado, como la interpolación o la imputación, reconstruyen los valores ausentes para que la serie conserve su continuidad temporal. Por último, las transformaciones de representación, como el ventaneo o la extracción de estadísticos agregados, convierten la secuencia en un conjunto de vectores que el modelo puede procesar.\\[.15cm]
+
+La elección de las transformaciones no es neutral: cada una introduce supuestos sobre los datos y condiciona lo que el modelo puede aprender. Por esa razón, en las subsecciones siguientes se describe cada etapa junto con los supuestos que la sustentan.
+
 \subsection{Limpieza de datos}
+
+Esta etapa tiene como objetivo detectar y corregir problemas en los datos brutos tal y como son recibidos de la fuente de sensores. Las operaciones típicamente realizadas en este proceso son:\\[.15cm]
+
+\textbf{Detección y tratamiento de valores atípicos:} Se pueden implementar métodos estadísticos como rango intercuartil, puntuación Z, desviación absoluta mediana o también basados en modelos como el Isolation Forest. En esta parte se puede necesitar de la eliminación de registros, imputación por media o interpolación.\\[.15cm]
+
+\textbf{Imputación de datos faltantes:} Para lagunas que son cortas, la interpolación lineal o cúbica suele ser suficiente para obtener la información resultante. Para el caso de lagunas más largas, se puede recurrir a la imputación por series similares como el caso del K-NN temporal o también de modelos autoregresivos como el MICE.\\[.15cm]
+
+\textbf{Eliminación de ruido:} Se puede hacer uso de filtro digitales como media móvil o suavizado exponencial para reducir la variabilidad no informativa\\[.15cm]
+
 \subsection{Normalización y estandarización}
+
+Los algoritmos de aprendizaje automático basados en distancias principalmente o también los que utilizan gradientes requieren que las variables estén escaladas. Para esto se cuenta con dos enfoques principales:\\[.15cm]
+
+\textbf{Normalización Min-Max:}
+Reescala los datos a un intervalo fijo, típicamente [0,1].
+Mantiene la distribución original, pero es sensible a valores extremos.\\[.15cm]
+\[
+x' = \frac{x - x_{\min}}{x_{\max} - x_{\min}}
+\]
+
+\textbf{Estandarización Z-score:}
+Centra los datos en media 0 y los escala a varianza unitaria.
+Adecuada para modelos que asumen normalidad o son sensibles a la escala.\\[.15cm]
+
+\[
+x' = \frac{x - \mu}{\sigma}
+\]
+
 \subsection{Validación respecto al orden temporal}
 
+Los errores más comunes en el modelado de series de tiempo es la validación con datos de manera incorrecta, en donde al igual que en tareas de regresión, se implementa una aleatorización para la formación de conjuntos de entrenamiento y prueba. En el caso de las series de tiempo, la manera correcta para hacer una validación de los datos es mediante 2 técnicas:\\[.15cm]
+
+\textbf{Ventana expansible}
+En este método de validación el conjunto de entrenamiento va creciendo con el tiempo, mientras se van incorporando nuevas observaciones sin eliminar las anteriores. Tiene la ventaja de que aprovecha toda la información histórica pero la desventaja de incluir datos que son obsoletos si hay cambios en la tendencia de la serie en cuestión.\\[.15cm]
+
+\textbf{Ventana deslizante}
+En este método de validación el conjunto de entrenamiento conserva un tamaño fijo para cada uno de los folds, el cuál se va recorriendo durante los valores de la serie y no toma en cuenta valores pasados que pueden aportar poca información para el tiempo actual en el que se está llevando un nuevo entrenamiento. Este método es más útil para los casos donde la serie tiene cambio notorios en su comportamiento.\\[.15cm]
+
+% -----------------------------------------------------------------------------
+% 2.6
+% -----------------------------------------------------------------------------
 \section{Consideraciones específicas para estimar el RUL}
 
+EL equiquedado de la variable objetivo es un tema de importancia al estimar el RUL, donde para cada instante dentro de la ventana de entrenamiento, el RUL se define como:
+\[
+RUL(t) = T_{\text{falla}} - t
+\]
+Pero se debe tomar en cuenta que en la práctica la función de degradación no es lineal ni constante, y en los momentos que son muy cercanos a la falla se pueden presentar fluctuaciones.\\[.15cm]
+
+Por otra parte, se debe considerar un tratamiento para el ciclo inicial de la serie de tiempo, ya que, al inicio de la vida de un equipo, el RUL es grande y las señales de los sensores son muy similares entre diferenes equipos, pero esto puede causar que los modelos tengan dificultades para poder distinguir patrones. Una técnica opcional es iniciar el entrenamiento a partir del punto donde la degradación se hace detectable.\\[.15cm]
+
+Finalmente se debe hacer una ponderación en el tiempo para cada clase de la serie, Dado que hay mucho ejemplos de RUL alto, y pocos de RUL bajo, las medidas de desempeño como RMSE pueden estar dominadas por los errores en los ejemplos que están más abundantes. Para poder corregir este problema, se puede aplicar una ponderación en la función de pérdida al otorgar un mayor peso para los ejemplos con un RUL pequeño.
+
+% -----------------------------------------------------------------------------
+% 2.7
+% -----------------------------------------------------------------------------
 \section{Tareas de mantenimiento predictivo y consideraciones}
-\subsection{Detección de anomalías}
-\subsection{Tipos de anomalías en series de tiempo}
-\subsection{Enfoques para la detección de anomalías}
-\subsection{Dificultades para la detección de anomalías}
+
+El mantenimiento predictivo basado en datos consiste en dos tareas analíticas que son complementarias entre si, aunque conceptualmente son distintas: La detección temprana de anomalías, que es donde se indica una desviación del comportamiento normal, y la estimación del RUL, que cuantifica cuánto tiempo puede operar el equipo en cuestión antes de una falla. Ambas tareas pueden abordarse con algoritmos de aprendizaje automático, pero difieren en el tipo de supervisión, la naturaleza de su variable objetivo y también en las medidas de desempeño que son utilizadas para ser evaluadas. Para este trabajo el énfasis estará en la estimación del RUL, donde el Predictor Gamma será evaluado frente a otros algoritmos de referencia presentes en la industria.
+
 \subsection{Estimación de RUL}
 
+Este es el núcleo del mantenimiento predictivo de última generación porque permite programar intervenciones de mantenimiento justo antes de que sea producida una falla, optimizando así el uso de la vida útil de los componentes de un equipo industrial. También permite mejorar la planificación logística de repuestos para evitar intervalos excesivos o faltantes. Estimar el valor residual de un activo y también calcular el costo de vida de un equipo con mayor precisión. En la literatura se distinguen tres grandes familias de métodos para la estimación del RUL \cite{si2011}\\[.15cm].
+
+Primero están los enfoques basados en modelos físicos, estos hacen uso de ecuaciones diferenciales que describen el mecanismo de degradación. Son muy precisos cuando el mecanismo es conocido pero muy difíciles de parametrizar y prácticamente inviables en sistemas complejos con múltiples modos de falla.
+Después los enfoques basados en datos, los cuales aprenden directamente de los datos históricos de sensores, sin la necesidad de conocer la física. Esto se dividen en estadísticos, Machine Learning clásico y de Deep Learning. Finalmente están los híbridos, que combinan modelos físicos con datos para poder ajustar parámetros o corregir predicciones. Quedan fuera del alcance de este proyecto por su complejidad.\\[.15cm]
+
+% -----------------------------------------------------------------------------
+% 2.8
+% -----------------------------------------------------------------------------
 \section{Algoritmos de referencia}
+
+En este proyecto se ha seleccionado un conjunto de algoritmos que son ampliamente utilizados en la literatura y también en la industria para la tarea de estimación del RUL. La selección fue por el criterio de representación de los diferentes paradigmas abordados previamente, también que tuvieran una implementación madura y fueran de código abierto, además de haber mostrado un desempeño bueno en problemas similares con el conjunto C-MAPSS. A continuación se describe cada uno de ellos:
+
 \subsection{Random Forest}
+
+Se trata de un algoritmo de aprendizaje ensamblado propuesto por Breiman en el 2001 \cite{breiman2001} que combina múltiples árboles de decisión para mejorar la precisión y controlar el problema de sobreajuste. Este algoritmo tiene una versión para regresión que se puede utilizar para la estimación del RUL que funciona de la siguiente manera:
+
+\begin{enumerate}
+    \item \textbf{Bootstrap:}  Se generan $B$ conjuntos de entrenamiento mediante un muestreo con reemplazo (bagging) a partir del conjunto original. Cada subconjunto generado tiene el mismo tamaño que el original, pero también deja instancias de los datos originales fuera. Esta característica le permite realizar una validación interna sin la necesidad de un conjunto de validación por separado.
+
+    \item \textbf{Árboles no podados:}  Para cada conjunto de datos generado, se construye un árbol de regresión, en donde cada nodo se selecciona aleatoriamente un subconjunto de variables. Se elige la mejor división que minimiza el error cuadŕatico medio en esas mismas variables.
+
+    \item \textbf{Predicción:}  Para cada nueva observación, cada árbol produce su predicción $\hat{y}$. La salida final del Random Forest es el promedio de la predicciones individuales.
+
+\[
+\hat{y}(x) = \frac{1}{B} \sum_{b=1}^{B} \hat{y}_b(x)
+\]
+\end{enumerate}
+
+Este algoritmo es muy eficiente frente a valores atípicos y ruido, ya que al promediar muchos árboles, el impacto de los outliers individuales se reduce considerablemente, lo que es valioso en datos de sensores industriales con ruido intrínseco por naturaleza. Por otra parte, este algoritmo es muy bueno manejando alta dimensionalidad sin la necesidad de selección explícita de características, pero su eficiencia puede caer si existen variables que sean irrelevantes. Una de las características principales de este algoritmo es que puede dar información acerca de la importancia de las variables, lo que permite identificar que sensores son más relevantes en el proceso de degradación. Por último, en este algoritmo no es necesario realizar un escalado de las características a diferencia de las redes neuronales o los métodos que están basados en distancias.\\[.15cm]
+
+Las desventajas que se pueden llegar a presentar en la implementación de lo Random Forest está en la pérdida de la estructura temporal, ya que se opera con vectores de características que son planos. Para aplicarlo a series de tiempo, es necesario hacer una transformación de la ventana deslizante a un vector de características, lo que se traduce en una dimensionalidad muy alta, un aumento en el tiempo de entrenamiento y en el riesgo de caer en sobreajuste. Con muchas características y árboles, el modelo puede ser pesado, sin embargo es significativamente más rápido que implementar una LSTM.\\[.15cm]
+
+Random Forest es un algoritmo que actúa como una línea base sólida y que ya está ampliamente utilizada en literatura para mantenimiento predictivo, por lo cual es una buena opción para utilizar en este trabajo.
+
 \subsection{XGBoost}
+
+XGBoost es una implementación optimizada del algoritmo de Gradient Boosting propuesta por Chen y Guestrin (2016)\cite{chen2016}. A diferencia del Random Forest que implementa bagging, el boosting construye árboles de manera secuencial en donde cada  nuevo árbol intenta corregir los errores residuales de los árboles anteriores. El modelo final es una suma ponderada de $K$ árboles:
+\[
+\hat{y}(x) = \sum_{k=1}^{K} f_k(x), \quad f_k \in \mathcal{F}
+\]
+
+Donde $\mathcal{F}$ es el espacio de árboles de regresión. Los árboles se añaden minimizando una función objetivo regularizada:
+
+\[
+\mathcal{L}^{(t)} = \sum_{i=1}^{n} l\left(y_i, \hat{y}_i^{(t)}\right) + \sum_{k=1}^{t} \Omega(f_k)
+\]
+
+Siendo $l$ la función de pérdida, y $\Omega$ un término de regularización que penaliza la complejidad del árbol. Además, XGBoost introduce varias innovaciones sobre el boosting clásico:
+
+\begin{itemize}
+    \item \textbf{Regularización:} Incorpora parámetros para penalizar por número de hojas y también penalización $Lasso$ para el control del sobreajuste.
+
+    \item \textbf{Valores faltantes:} Aprende automáticamente la dirección óptima para clasificar valores ausentes.
+
+    \item \textbf{Poda con profundidad máxima:} Construye los árboles en paralelo y poda los nodos negativos.
+
+    \item \textbf{early stopping:} Puede detener el entrenamiento cuando una medida de desempeño deja de mejorar.
+\end{itemize}
+
+Este algoritmo tiene la ventaja de tener un alto rendimiento predictivo, siendo que ha dominado muchas competencias de machine learning para datos tabulares que incluyen también problemas industriales. Suele superar incluso al Random Forest cuando se dispone de una gran cantidad de datos para el entrenamiento, además de contar con una eficiencia computacional considerable al evitar la construcción innecesaria de nodos.\\[.15cm]
+
+Al igual que el Random Forest, en este algoritmo se presenta el problema de pérdida en la estructura temporal al necesitar de características planas, por lo que se deben aplicar las mismas estrategias de concatenación de ventanas o extracción de estadísticos agregados. También se debe tomar en cuenta que es un algoritmo sensible a hiperparámetros que requieren de una búsqueda mediante técnicas como $grid search$ para poder obtener un buen rendimiento. Finalmente, se sabe que este algoritmo puede llegar a tener problemas de sobre ajuste cuando el número de características es grande en relación con el número de ejemplos.\\[.15cm]
+
+El uso de este algoritmo permite hacer una comparación del Predictor Gamma no solamente con ensambles en bagging como en el Random Forest, si no también con ensambles en boosting el cuál a menudo llega a presentar resultados que son superiores.
+
 \subsection{LSTM}
-\subsection{Isolation Forest}
 
+Las redes LSTM creadas por Hochreiter y Schmidhuber en 1997 \cite{hochreiter1997} son un tipo especial de red neuronal recurrente (RNN) diseñada para poder superar el problema del desvanecimiento del gradiente que afecta a las RNN estándar cuando se procesan secuencias largas de más de 20 pasos. La unidad LSTM introduce una celda de memoria que puede retener información durante muchos pasos y está controlada por 3 compuertas.
+
+\begin{enumerate}
+    \item \textbf{Compuerta de olvido:} Decide que información de la celda anterior $c_{t-1}$ se descarta. Su salida es un vector $f_{t}$ entre 0 y 1:
+    \[
+    f_t = \sigma\left(W_f \cdot [h_{t-1}, x_t] + b_f\right)
+    \]
+    \item \textbf{Compuerta de entrada:} Decide que nueva información se almacenará en la celda. Consta de dos partes: una capa sigmoide $i_{t}$ que decide que valores actualizar y una capa tanh $\tilde{c}_t $ que crea un vector con nuevos valores candidatos:
+
+    \[
+    i_t = \sigma\left(W_i \cdot [h_{t-1}, x_t] + b_i\right), \quad
+    \tilde{c}_t = \tanh\left(W_c \cdot [h_{t-1}, x_t] + b_c\right)
+    \]
+
+    luego se actualiza la celda: $c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$
+    \item \textbf{Compuerta de salida:} Calcula el estado oculto $h_{t}$ basado en la celda actual:
+
+    \[
+    o_t = \sigma\left(W_o \cdot [h_{t-1}, x_t] + b_o\right), \quad
+    h_t = o_t \odot \tanh(c_t)
+    \]
+\end{enumerate}
+
+Para las tareas de regresión del RUL, se puede utilizar una arquitectura de many-to-one donde se alimentaría la red con la secuencia completa de la ventana de los pasos $t-w + 1$ a $t$ y la salida es un único valor continuo (RUL en el instante $t$). Esto se logra tomando el último estado oculto $h_{t}$ o aplicando una capa densa sobre la secuencia de salidas con pooling.\\[.15cm]
+
+Este es un modelo creado explícitamente par dependencias temporales a largo plazo, y a diferencia del Random Forest y el XGBoost, las LSTM si procesan la secuencia en orden aprendiendo automáticamente patrones temporales como tendencias de degradación, cambios en la pendiente o hasta correlaciones retardadas entre diferentes sensores, por lo que no se requiere de un Feature Engineering manual. Por otra parte, con las LSTM se puede lograr un aprendizaje de representaciones que no son precisamente lineales al poder aproximar funciones complejas. También se pueden manejar secuencias de longitud variable.\\[.15cm]
+
+Un desafío que se enfrenta al implementar este algoritmo es principalmente el costo computacional que representan especialmente en el caso de utilizar varias capas, requiriendo incluso el uso de una GPU para poder lograr un entrenamiento en tiempos razonables. De igual manera, se tiene una gran cantidad de hiperparámetros por lo que se puede llegar a situaciones de sobre ajuste o de una convergencia lenta durante el entrenamiento. Este algoritmo si requiere que las entradas estén escaladas además de la necesidad de grandes cantidades de datos para poder lograr una buena generalización. Las LSTM representan el estándar del Deep Learning para trabajar con series de tiempo y se han convertido en una opción popular para la estimación del RUL en diferentes aplicaciones industriales en los últimos años. Incluirlas en el trabajo permitiría la comparación de una arquitectura profunda de Deep Learning con un enfoque mucho más sencillo como lo son las memorias asociativas.
+
+% -----------------------------------------------------------------------------
+% 2.9
+% -----------------------------------------------------------------------------
 \section{Predictor Gamma}
-\subsection{Características principales}
-\subsection{Operadores fundamentales}
-\subsection{Codificación JM}
-\subsection{Operador de similitud}
-\subsection{Notación}
-\subsection{Algoritmo}
 
+% TODO (autor): sección pendiente. El Predictor Gamma aún no está implementado.
+% Contenido previsto: memorias asociativas Alfa-Beta, operadores $\alpha$ y $\beta$,
+% codificación Johnson-Möbius, operador de similitud $\gamma$, notación y algoritmo.
+
+% -----------------------------------------------------------------------------
+% 2.10
+% -----------------------------------------------------------------------------
 \section{Conjuntos de datos}
+
+La validación de algoritmos para la tarea de estimación del RUL requiere datos estandarizados que permitan la comparación de manera justa entre diferentes enfoques.
+En las últimas décadas, la comunidad de mantenimiento predictivo ha desarrollado y difundido varios conjuntos de datos que funcionan como un benchmark, siendo el más influyente de estos el que fue generado mediante el simulador C-MAPSS del laboratorio de la NASA Prognostics Center of Excellence.\\[.15cm]
+
+Aunque los conjuntos de datos provenientes de simulaciones son ampliamente utilizados para la investigación académica, es importante tener en cuenta que los datos reales que provengan de plantas industriales en operación presentan desafíos significativamente mayores. La escasez de estos datos que sean reales y etiquetados, además de estar disponibles públicamente es una de las barreras ás importantes para el avance de la tarea de mantenimiento predictivo. Especialmente en países como México, donde los recursos para investigación son demasiado limitados.\\[.15cm]
+
 \subsection{Dificultades para obtener datos reales}
+
+Los datos operativos de una planta industrial con variables como temperaturas, presión, flujo, niveles de producción, calidad de producto entre otras, constituyen información estratégica sensible para las empresas, por lo que el compartir estos datos para ellos podría implicar revelar detalles de procesos patentados o incluso secretos industriales. También se podrían revelar niveles de eficiencia reales que podrían afectar en competitividad o hasta los historiales de fallas y tiempos de inactividad provocarían una afectación al revelar información que podría ser utilizada por sus competidores. Incluso cuando las empresas están dispuestas a colaborar con instituciones académicas, los acuerdos de confidencialidad y restricciones legales impiden la divulgación abierta de los datos. Como resultado de lo anterior, la mayoría de los conjuntos de datos que son públicos son simulaciones o provienen de laboratorios controlados, no de operaciones que son reales.\\[.15cm]
+
+En la práctica, son pocas las empresas que están dispuestas a dejar que un equipo crítico opere hasta la falla solo con fines de investigación, porque las consecuencias como paradas de producción, riesgos en temas de seguridad industrial o daños colaterales superan cualquier beneficio académico. Por ello, los datos reales disponibles también suelen estar censurados.
+
 \subsection{C-MAPSS}
 
+El C-MAPSS (Commercial Modular Aero-Propulsion System Simulation) \cite{saxena2008} es una herramienta de simulación para modelar el comportamiento termodinámico de motores de turbofán a gran escala. Fue diseñado originalmente para estudios de control de motores pero posteriormente se adaptó para poder generar series de tiempo de degradación hasta la falla con fines de investigación en pronósticos de salud. En este conjunto de datos se modela un motor turbofán de doble eje con flujo de derivación, integrando ventilador de entrada, compresores de alta y baja presión, cámara de combustión y turbinas de alta y baja presión.\\[.15cm]
+
+Las simulaciones se estructuran en vuelos de aproximadamente 90 minutos cada una combinando siete condiciones de vuelo distintas para abarcar un perfil típico ascenso desde el nivel del mar hasta un modo crucero a 35000 pies de altura. Posteriormente se inyecta una falla en un momento específico de uno de los vuelos, la cuál es persistente en todos los vuelos restantes, lo que provoca una aceleración en el envejecimiento del motor hasta que alcanza un estado de falla.\\[.15cm]
+
+Una de las principales virtudes de este conjunto de datos es que está ordenado en 4 conjuntos de dificultad que va creciendo denominados como FD001, FD002, FD003 y FD004. Estos conjuntos van variando en el número de trayectorias de entrenamiento y pruebas, además de complejidad derivada por el aumento en el número de condiciones operativas y modos de falla.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt} % reduce espacio entre columnas
+\caption{Descripción de los subconjuntos del dataset C-MAPSS}
+\label{tab:cmapss}
+\begin{tabular}{c c c p{3cm} p{3.2cm}}
+\toprule
+\textbf{Subc.} & \textbf{Entren.} & \textbf{Prueba} & \textbf{Condiciones} & \textbf{Fallas} \\
+\midrule
+FD001 & 100 & 100 & 1 (nivel del mar) & 1 (HPC) \\
+FD002 & 260 & 259 & 6 (altitudes/cargas) & 1 (HPC) \\
+FD003 & 100 & 100 & 1 (nivel del mar) & 2 (HPC + vent.) \\
+FD004 & 249 & 248 & 6 (múltiples) & 2 (HPC + vent.) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% -----------------------------------------------------------------------------
+% 2.11
+% -----------------------------------------------------------------------------
 \section{Medidas de desempeño}
+
+La evaluación de los algoritmos es importante para poder determinar si el Predictor Gamma puede superar o igualar alguno de los algoritmos anteriormente abordados para la tarea de estimación del RUL. En este proyecto se emplearán medidas de desempeño cuantitativa estándar para esa tarea, además, se va a complementar con pruebas estadísticas que permiten determinar si las diferencias observadas son estadísticamente significativas o pueden deberse al azar.
+
 \subsection{Estimación del RUL}
-\subsection{Detección de anomalías}
 
+El error absoluto medio o MAE, mide la magnitud promedio de los errores sin considerar su dirección, sea una sobreestimación o una subestimación. Está definida como:
+
+\[
+    \mathrm{MAE} = \frac{1}{n} \sum_{i=1}^{n} \left| y_i - \hat{y}_i \right|
+\]
+
+donde $y_i$ es el RUL verdadero, $\hat{y}_i$ es el RUL predicho y $n$ es el número total de ejemplos de prueba. El MAE se expresa en las mismas unidades de la variable objetivo con la que se está trabajando, además de ser una medida robusta frente a valores atípicos.\\[.15cm]
+
+La raíz del error cuadrático medio o RMSE penaliza más los errores que son grandes debido a la operación de elevar al cuadrado. Es de las medidas de desempeño más utilizadas en la literatura del RUL y permite comparar directamente los resultados reportados por otros autores.
+
+\[
+\mathrm{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}
+\]
+
+La principal desventaja que se tiene con esta medida es su sensibilidad a los valores atípicos, porque un solo error grande puede dominar gran parte del resultado. Debido a que en series de tiempo reales de la industria pueden existir fallos esporádicos de sensores, llega a ser preferible utilizar el MAE.\\[.15cm]
+
+La puntuación de simetría o Score asimétrico es otra medida de desempeño implementada en tareas de RUL. En muchas aplicaciones, sobreestimar el RUL es mucho más peligroso que subestimarlo, porque puede llevar a no programar el mantenimiento a tiempo, resultando en una falla no planificada con sus consecuencias económicas y de seguridad. Por el contrario, subestimar el RUL solo provoca un mantenimiento ligeramente anticipado, lo cual es menos costoso en todos los aspectos. Para poder reflejar la asimetría, Saxena en el 2010 \cite{saxena2010} propuso una puntuación que penaliza más la sobreestimación que la subestimación de la siguiente manera:
+
+\[
+\text{Score} = \frac{1}{n} \sum_{i=1}^{n} \left( e^{-\alpha \, d_i} - 1 \right)
+\]
+\[
+d_i =
+\begin{cases}
+y_i - \hat{y}_i, & \text{si } \hat{y}_i < y_i \quad \text{(subestimación)} \\
+\hat{y}_i - y_i, & \text{si } \hat{y}_i \geq y_i \quad \text{(sobrestimación)}
+\end{cases}
+\]
+
+% -----------------------------------------------------------------------------
+% 2.12
+% -----------------------------------------------------------------------------
 \section{Análisis estadístico}
-\subsection{Prueba de Friedman}
-\subsection{Test post-hoc de Nemenyi}
-\subsection{Corrección de Bonferroni}
 
+Un error común en la evaluación de algoritmos de aprendizaje es declarar que un algoritmo es mejor que otros basándose únicamente en la diferencia de una medida de desempeño promedio. Porque para poder determinar si las diferencias observadas son estadísticamente significativas, es decir, que dichas diferencias no se debieron únicamente al azar, se emplean diferentes pruebas estadísticas. Dado que en este trabajo se hace una comparación de múltiples algoritmos sobre varios conjuntos de datos, es necesario hacer una implementación por etapas.
+
+\subsection{Prueba de Friedman}
+
+La prueba de Friedman es un equivalente no paramétrico a ANOVA de dos vías para medias repetidas. Se utiliza para determinar si existen diferencias estadísticamente significativas entre las medianas de $k$>2 algoritmos evaluados sobre $N$ conjuntos de datos o $N$ repeticiones del experimento. No asume que los errores siguen una distribución normal ni tampoco homogeneidad de varianzas, por lo que es adecuada para medidas como RMSE y MAE. El procedimiento es el siguiente:
+
+\begin{enumerate}
+    \item Para cada conjunto de datos, se ordenan los algoritmos por su desempeño en orden descendente. Se obtienen los rangos $r_{ij}$ para el algoritmo $i$ en el conjunto $j$.
+
+    \item Se calcula el rango promedio de cada algoritmo como:
+\[
+\bar{R}_i = \frac{1}{N} \sum_{j=1}^{N} r_{ij}
+\]
+
+    \item Bajo la hipótesis nula de que todos los algoritmos tienen el mismo desempeño esperado, el estadístico de Friedman se calcula como:
+
+\[
+\chi_F^2 = \frac{12N}{k(k+1)} \left( \sum_{i=1}^{k} \bar{R}_i^{2} - \frac{k(k+1)^{2}}{4} \right)
+\]
+
+    \item Este estadístico sigue aproximadamente una distribución de $\chi^2$ con $k$ - 1 grados de libertad. Si el valor $p$ es menor que un nivel de significancia $\alpha$ típicamente de 0.05, se rechaza la hipótesis nula y se acepta la hipótesis alternativa, la cuál indica que al menos un par de algoritmos es diferente.
+
+\end{enumerate}
+
+\subsection{Test post-hoc de Nemenyi}
+
+Cuando la prueba de Friedman rechaza la hipótesis nula, se concluye que al menos un par de algoritmos difiere, pero no se identifica cuál. Para determinarlo se aplican pruebas post-hoc por pares. La prueba de Nemenyi compara simultáneamente todos los pares de algoritmos a partir de sus rangos promedio $\bar{R}_i$ obtenidos en la prueba de Friedman, controlando el error tipo I para el conjunto completo de comparaciones.\\[.15cm]
+
+Nemenyi define una diferencia crítica a partir de la cual dos rangos promedio se consideran estadísticamente distintos. Para $k$ algoritmos evaluados sobre $N$ conjuntos de datos, la diferencia crítica se calcula como:
+
+\[
+CD = q_{\alpha} \sqrt{\frac{k(k+1)}{6N}}
+\]
+
+donde $q_{\alpha}$ es el valor crítico de la distribución del rango studentizado para $k$ grupos y un nivel de significancia $\alpha$, obtenido de las tablas de Nemenyi. Dos algoritmos $i$ y $j$ se declaran significativamente diferentes si:
+
+\[
+\left| \bar{R}_i - \bar{R}_j \right| > CD
+\]
+
+Los resultados suelen representarse mediante un diagrama de diferencias críticas, en el que los algoritmos se ordenan por rango promedio y se unen con una barra horizontal aquellos pares cuya diferencia no supera $CD$. En este trabajo, la prueba de Nemenyi se aplica únicamente cuando la prueba de Friedman resulta significativa, y complementa la comparación por pares del Predictor Gamma contra cada uno de los algoritmos de referencia.
+
+Para poder asegurar que en trabajos a futuro se pueda hacer una réplica de los experimentos, se va a ajustar en un inicio con una semilla aleatoria toda la experimentación para cada uno de los algoritmos y procesos en los que se vea involucrada la aleatoriedad. Además, se almacenarán las predicciones de los modelos en archivos CSV junto con los tiempos de entrenamiento.
+
+% -----------------------------------------------------------------------------
+% 2.13
+% -----------------------------------------------------------------------------
 \section{Estado del arte}
+
+% TODO (autor): sección pendiente. Materia prima disponible en
+% referencias/bibliografia.bib (entradas 2023--2026 aún sin citar).
