@@ -229,9 +229,9 @@ EL equiquedado de la variable objetivo es un tema de importancia al estimar el R
 \[
 RUL(t) = T_{\text{falla}} - t
 \]
-Pero se debe tomar en cuenta que en la práctica la función de degradación no es lineal ni constante, y en los momentos que son muy cercanos a la falla se pueden presentar fluctuaciones.\\[.15cm]
+Pero se debe tomar en cuenta que en la práctica la función de degradación no es lineal ni constante, y en los momentos que son muy cercanos a la falla se pueden presentar ciertas fluctuaciones.\\[.15cm]
 
-Por otra parte, se debe considerar un tratamiento para el ciclo inicial de la serie de tiempo, ya que, al inicio de la vida de un equipo, el RUL es grande y las señales de los sensores son muy similares entre diferenes equipos, pero esto puede causar que los modelos tengan dificultades para poder distinguir patrones. Una técnica opcional es iniciar el entrenamiento a partir del punto donde la degradación se hace detectable.\\[.15cm]
+Por otra parte, también se debe considerar un tratamiento para el ciclo inicial de la serie de tiempo, ya que al inicio de la vida de un equipo, el RUL es grande y las señales de los sensores son muy similares entre diferenes equipos, pero esto puede causar que los modelos tengan dificultades para poder distinguir patrones. Una técnica opcional es iniciar el entrenamiento a partir del punto donde la degradación se hace detectable.\\[.15cm]
 
 Finalmente se debe hacer una ponderación en el tiempo para cada clase de la serie, Dado que hay mucho ejemplos de RUL alto, y pocos de RUL bajo, las medidas de desempeño como RMSE pueden estar dominadas por los errores en los ejemplos que están más abundantes. Para poder corregir este problema, se puede aplicar una ponderación en la función de pérdida al otorgar un mayor peso para los ejemplos con un RUL pequeño.
 
@@ -240,11 +240,11 @@ Finalmente se debe hacer una ponderación en el tiempo para cada clase de la ser
 % -----------------------------------------------------------------------------
 \section{Tareas de mantenimiento predictivo y consideraciones}
 
-El mantenimiento predictivo basado en datos consiste en dos tareas analíticas que son complementarias entre si, aunque conceptualmente son distintas: La detección temprana de anomalías, que es donde se indica una desviación del comportamiento normal, y la estimación del RUL, que cuantifica cuánto tiempo puede operar el equipo en cuestión antes de una falla. Ambas tareas pueden abordarse con algoritmos de aprendizaje automático, pero difieren en el tipo de supervisión, la naturaleza de su variable objetivo y también en las medidas de desempeño que son utilizadas para ser evaluadas. Para este trabajo el énfasis estará en la estimación del RUL, donde el Predictor Gamma será evaluado frente a otros algoritmos de referencia presentes en la industria.
+El mantenimiento predictivo basado en datos consiste en dos tareas analíticas que son complementarias entre si aunque conceptualmente son distintas: La \textbf{detección temprana de anomalías}, que es donde se indica una desviación del comportamiento normal, y la \textbf{estimación del RUL}, que se usa para cuantificar cuánto tiempo puede operar el equipo en cuestión antes de una falla. Ambas tareas pueden abordarse con algoritmos de aprendizaje automático, pero difieren en el tipo de supervisión, naturaleza de su variable objetivo y también en las medidas de desempeño que son utilizadas para ser evaluadas. Para este trabajo el énfasis estará únicamente en la estimación del RUL, donde el Predictor Gamma será evaluado frente a otros algoritmos de referencia presentes en la industria.
 
 \subsection{Estimación de RUL}
 
-Este es el núcleo del mantenimiento predictivo de última generación porque permite programar intervenciones de mantenimiento justo antes de que sea producida una falla, optimizando así el uso de la vida útil de los componentes de un equipo industrial. También permite mejorar la planificación logística de repuestos para evitar intervalos excesivos o faltantes. Estimar el valor residual de un activo y también calcular el costo de vida de un equipo con mayor precisión. En la literatura se distinguen tres grandes familias de métodos para la estimación del RUL \cite{si2011}\\[.15cm].
+Este es el núcleo del mantenimiento predictivo de última generación porque ayuda a programar intervenciones de mantenimiento justo antes de quese presente una falla, optimizando así el uso de la vida útil de los componentes de los equipos industriales. También permite mejorar la planificación logística de repuestos para evitar intervalos excesivos o faltantes. Estimar el valor residual de un activo y también calcular el costo de vida de un equipo con mayor precisión. En la literatura se distinguen tres grandes familias de métodos para la estimación del RUL \cite{si2011}\\[.15cm].
 
 Primero están los enfoques basados en modelos físicos, estos hacen uso de ecuaciones diferenciales que describen el mecanismo de degradación. Son muy precisos cuando el mecanismo es conocido pero muy difíciles de parametrizar y prácticamente inviables en sistemas complejos con múltiples modos de falla.
 Después los enfoques basados en datos, los cuales aprenden directamente de los datos históricos de sensores, sin la necesidad de conocer la física. Esto se dividen en estadísticos, Machine Learning clásico y de Deep Learning. Finalmente están los híbridos, que combinan modelos físicos con datos para poder ajustar parámetros o corregir predicciones. Quedan fuera del alcance de este proyecto por su complejidad.\\[.15cm]
@@ -254,11 +254,21 @@ Después los enfoques basados en datos, los cuales aprenden directamente de los 
 % -----------------------------------------------------------------------------
 \section{Algoritmos de referencia}
 
-En este proyecto se ha seleccionado un conjunto de algoritmos que son ampliamente utilizados en la literatura y también en la industria para la tarea de estimación del RUL. La selección fue por el criterio de representación de los diferentes paradigmas abordados previamente, también que tuvieran una implementación madura y fueran de código abierto, además de haber mostrado un desempeño bueno en problemas similares con el conjunto C-MAPSS. A continuación se describe cada uno de ellos:
+En este proyecto se ha seleccionado un conjunto de algoritmos ampliamente utilizados en la literatura y en la industria para la tarea de estimación del RUL. La selección responde a tres criterios: representar los diferentes paradigmas abordados previamente, contar con una implementación madura y de código abierto, y haber mostrado un desempeño competitivo sobre el conjunto C-MAPSS. Con la intención de comparar sus enfoques y contrastar las diferencias significativas en desempeño, tiempos de entrenamiento y recursos computacionales consumidos, los algoritmos se agrupan en tres familias:
+
+\begin{itemize}
+    \item \textbf{Aprendizaje automático clásico:} Random Forest (bagging), XGBoost y LightGBM (boosting), y Support Vector Regression (métodos de kernel). Operan sobre vectores de características planas.
+
+    \item \textbf{Deep Learning:} el perceptrón multicapa (MLP), las redes convolucionales unidimensionales (CNN 1D) y las LSTM, que cubren respectivamente el procesamiento por vectores planos, por patrones locales y por dependencias temporales de largo alcance.
+
+    \item \textbf{Memorias asociativas:} el Predictor Gamma, que se describe más adelante y se compara contra las dos familias anteriores.
+\end{itemize}
+
+A continuación se describe cada uno de ellos:
 
 \subsection{Random Forest}
 
-Se trata de un algoritmo de aprendizaje ensamblado propuesto por Breiman en el 2001 \cite{breiman2001} que combina múltiples árboles de decisión para mejorar la precisión y controlar el problema de sobreajuste. Este algoritmo tiene una versión para regresión que se puede utilizar para la estimación del RUL que funciona de la siguiente manera:
+Se trata de un algoritmo de aprendizaje automático de ensamble propuesto por Breiman en el 2001 \cite{breiman2001} que combina múltiples árboles de decisión para mejorar la precisión y controlar el problema de sobreajuste. Este algoritmo tiene una versión para regresión que se puede utilizar para la estimación del RUL que funciona de la siguiente manera:
 
 \begin{enumerate}
     \item \textbf{Bootstrap:}  Se generan $B$ conjuntos de entrenamiento mediante un muestreo con reemplazo (bagging) a partir del conjunto original. Cada subconjunto generado tiene el mismo tamaño que el original, pero también deja instancias de los datos originales fuera. Esta característica le permite realizar una validación interna sin la necesidad de un conjunto de validación por separado.
@@ -272,9 +282,9 @@ Se trata de un algoritmo de aprendizaje ensamblado propuesto por Breiman en el 2
 \]
 \end{enumerate}
 
-Este algoritmo es muy eficiente frente a valores atípicos y ruido, ya que al promediar muchos árboles, el impacto de los outliers individuales se reduce considerablemente, lo que es valioso en datos de sensores industriales con ruido intrínseco por naturaleza. Por otra parte, este algoritmo es muy bueno manejando alta dimensionalidad sin la necesidad de selección explícita de características, pero su eficiencia puede caer si existen variables que sean irrelevantes. Una de las características principales de este algoritmo es que puede dar información acerca de la importancia de las variables, lo que permite identificar que sensores son más relevantes en el proceso de degradación. Por último, en este algoritmo no es necesario realizar un escalado de las características a diferencia de las redes neuronales o los métodos que están basados en distancias.\\[.15cm]
+Este algoritmo es muy eficiente frente a valores atípicos y ruido, ya que al promediar muchos árboles, el impacto de los outliers individuales se reduce considerablemente, lo que es valioso en datos de sensores industriales con ruido intrínseco por naturaleza. Por otra parte este algoritmo es muy bueno manejando problemas con alta dimensionalidad sin la necesidad de selección explícita de características, pero su eficiencia puede caer si existen variables que sean irrelevantes. Una de las características principales de este algoritmo es que puede dar información acerca de la importancia de las variables, lo que permite identificar que sensores son más relevantes en el proceso de degradación. Otro de los beneficios que  este algoritmo aporta es que no es necesario realizar un escalado de las características a diferencia de las redes neuronales o los métodos que están basados en distancias.\cite{geron2017}\\[.15cm]
 
-Las desventajas que se pueden llegar a presentar en la implementación de lo Random Forest está en la pérdida de la estructura temporal, ya que se opera con vectores de características que son planos. Para aplicarlo a series de tiempo, es necesario hacer una transformación de la ventana deslizante a un vector de características, lo que se traduce en una dimensionalidad muy alta, un aumento en el tiempo de entrenamiento y en el riesgo de caer en sobreajuste. Con muchas características y árboles, el modelo puede ser pesado, sin embargo es significativamente más rápido que implementar una LSTM.\\[.15cm]
+Las desventajas que se pueden llegar a presentar en la implementación de lo Random Forest está en la pérdida de la estructura temporal, ya que se opera con vectores de características que son planos. Para aplicarlo a series de tiempo, es necesario hacer una transformación de la ventana deslizante a un vector de características, lo que se traduce en una dimensionalidad muy alta, un aumento en el tiempo de entrenamiento y en el riesgo de caer en un sobreajuste. Con muchas características y árboles, el modelo puede ser pesado, sin embargo es significativamente más rápido que implementar una LSTM.\\[.15cm]
 
 Random Forest es un algoritmo que actúa como una línea base sólida y que ya está ampliamente utilizada en literatura para mantenimiento predictivo, por lo cual es una buena opción para utilizar en este trabajo.
 
@@ -303,11 +313,59 @@ Siendo $l$ la función de pérdida, y $\Omega$ un término de regularización qu
     \item \textbf{early stopping:} Puede detener el entrenamiento cuando una medida de desempeño deja de mejorar.
 \end{itemize}
 
-Este algoritmo tiene la ventaja de tener un alto rendimiento predictivo, siendo que ha dominado muchas competencias de machine learning para datos tabulares que incluyen también problemas industriales. Suele superar incluso al Random Forest cuando se dispone de una gran cantidad de datos para el entrenamiento, además de contar con una eficiencia computacional considerable al evitar la construcción innecesaria de nodos.\\[.15cm]
+Este algoritmo tiene la ventaja de tener un alto rendimiento predictivo porque incluso ha dominado muchas competencias de machine learning para datos tabulares que incluyen también problemas industriales. Suele tener resultados competitivos frente al algoritmo de Random Forest cuando se dispone de una gran cantidad de datos para el entrenamiento, además de contar con una eficiencia computacional considerable al evitar la construcción innecesaria de nodos.\\[.15cm]
 
-Al igual que el Random Forest, en este algoritmo se presenta el problema de pérdida en la estructura temporal al necesitar de características planas, por lo que se deben aplicar las mismas estrategias de concatenación de ventanas o extracción de estadísticos agregados. También se debe tomar en cuenta que es un algoritmo sensible a hiperparámetros que requieren de una búsqueda mediante técnicas como $grid search$ para poder obtener un buen rendimiento. Finalmente, se sabe que este algoritmo puede llegar a tener problemas de sobre ajuste cuando el número de características es grande en relación con el número de ejemplos.\\[.15cm]
+Al igual que el Random Forest, en este algoritmo se presenta el problema de pérdida en la estructura temporal al necesitar de características planas, por lo que se deben aplicar las mismas estrategias de concatenación de ventanas o extracción de estadísticos agregados. También se debe tomar en cuenta que es un algoritmo sensible a hiperparámetros que requieren de una búsqueda mediante técnicas como $grid search$ o algúna técnica basada en $probabilidad bayesiana$ para poder obtener un buen rendimiento. Finalmente, se sabe que este algoritmo puede llegar a tener problemas de sobre ajuste cuando el número de características es grande en relación con el número de ejemplos.\\[.15cm]
 
 El uso de este algoritmo permite hacer una comparación del Predictor Gamma no solamente con ensambles en bagging como en el Random Forest, si no también con ensambles en boosting el cuál a menudo llega a presentar resultados que son superiores.
+
+\subsection{LightGBM}
+
+LightGBM es una implementación del algoritmo de Gradient Boosting propuesta por Ke et al. (2017) \cite{ke2017}, diseñada específicamente para reducir el costo computacional del entrenamiento cuando la dimensionalidad de las características y el volumen de datos son altos. Al igual que XGBoost, construye los árboles de forma secuencial, donde cada árbol nuevo corrige los errores residuales de los anteriores, pero incorpora dos técnicas propias para reducir el número de instancias y de características que se evalúan en cada iteración:
+
+\begin{itemize}
+    \item \textbf{Muestreo basado en el gradiente (GOSS):} los ejemplos con gradientes grandes son los que más aportan a la estimación de la ganancia de información, por lo que se conservan todos y se muestrea aleatoriamente una fracción de los que tienen gradientes pequeños. Con ello se reduce el número de instancias utilizadas en cada iteración sin afectar de manera significativa la precisión del modelo.
+
+    \item \textbf{Agrupación de características exclusivas (EFB):} las características dispersas que rara vez toman valores distintos de cero al mismo tiempo se agrupan y se tratan como una sola, lo que reduce el número efectivo de características. Encontrar la agrupación óptima es un problema NP-hard, pero se resuelve de forma aproximada reduciéndolo a un problema de coloración de grafos.
+\end{itemize}
+
+A estas técnicas se suma el uso de histogramas para la búsqueda de los puntos de corte, en lugar de evaluar todos los valores posibles de cada característica, y un crecimiento del árbol hoja por hoja en vez de nivel por nivel. Este último selecciona en cada paso la hoja con mayor ganancia potencial, lo que reduce la pérdida con un menor número de hojas, pero incrementa el riesgo de sobreajuste cuando el conjunto de entrenamiento es pequeño, por lo que es necesario limitar el número máximo de hojas y exigir un mínimo de ejemplos por hoja.\\[.15cm]
+
+Los autores reportan que, sobre conjuntos de datos públicos, LightGBM acelera el entrenamiento del boosting convencional hasta en más de 20 veces manteniendo una precisión prácticamente igual. Esta eficiencia resulta relevante en el contexto de este trabajo, donde las ventanas deslizantes producen matrices de características de dimensionalidad alta.\\[.15cm]
+
+Como contraparte, conserva las mismas limitaciones estructurales que los demás ensambles basados en árboles: requiere características planas, por lo que la estructura temporal de la serie se pierde y deben aplicarse las mismas estrategias de concatenación de ventanas o extracción de estadísticos agregados. Además, su dependencia de hiperparámetros como el número de hojas, la tasa de aprendizaje y el número mínimo de ejemplos por hoja hace necesaria una búsqueda sistemática para obtener un buen desempeño.
+
+Con esta implementación se amplía la comparación del Predictor Gamma dentro de la familia de los ensambles en boosting, incorporando una variante orientada a la eficiencia computacional frente a XGBoost.
+
+\subsection{Support Vector Regression}
+
+El Support Vector Regression (SVR) es la extensión de las máquinas de vectores de soporte al problema de regresión, formulada dentro del marco de la teoría del aprendizaje estadístico y descrita de forma detallada por Smola y Schölkopf (2004) \cite{smola2004}. A diferencia de los ensambles de árboles, que combinan muchos modelos simples, el SVR ajusta un único modelo global en un espacio de características de alta dimensión.\\[.15cm]
+
+La idea central es que el modelo no intenta minimizar directamente el error sobre cada ejemplo, sino encontrar una función que se desvíe como máximo un margen $\varepsilon$ de los valores objetivo. Las desviaciones menores a $\varepsilon$ no se penalizan, de modo que la solución ignora el ruido de pequeña magnitud, mientras que las que exceden ese margen se penalizan de forma lineal mediante variables de holgura $\xi_i$ y $\xi_i^{*}$. El problema de optimización resultante es:
+
+\[
+\min_{w,b,\xi,\xi^{*}} \frac{1}{2}\lVert w \rVert^{2} + C \sum_{i=1}^{n} \left(\xi_i + \xi_i^{*}\right)
+\]
+
+sujeto a las restricciones:
+
+\[
+\begin{aligned}
+y_i - \langle w, \varphi(x_i)\rangle - b &\leq \varepsilon + \xi_i \\
+\langle w, \varphi(x_i)\rangle + b - y_i &\leq \varepsilon + \xi_i^{*} \\
+\xi_i, \xi_i^{*} &\geq 0
+\end{aligned}
+\]
+
+Donde $\varphi(\cdot)$ es una transformación no lineal que proyecta las entradas a un espacio de mayor dimensionalidad. En la práctica esa transformación no se calcula de forma explícita, sino que se sustituye por una función kernel, siendo el kernel gaussiano (RBF) el más utilizado, ya que permite capturar relaciones no lineales con un solo hiperparámetro adicional $\gamma$.\\[.15cm]
+
+El comportamiento del modelo queda determinado principalmente por tres hiperparámetros: el parámetro de regularización $C$, que controla el equilibrio entre el margen y la penalización del error; el margen $\varepsilon$, que define el ancho de la banda dentro de la cual los errores se consideran nulos; y el parámetro $\gamma$ del kernel, que determina el alcance de influencia de cada ejemplo de entrenamiento.\\[.15cm]
+
+Entre sus ventajas destaca que el problema de optimización es convexo, por lo que la solución obtenida es un óptimo global y no depende de la inicialización, a diferencia de las redes neuronales. Además, la solución es dispersa, ya que solo los vectores de soporte, es decir, los ejemplos que se encuentran sobre el margen o fuera de él, determinan el modelo final.\\[.15cm]
+
+Sus limitaciones son relevantes para el problema de este trabajo. Por un lado, al basarse en distancias entre puntos, requiere que las características estén normalizadas, lo cual conecta con lo expuesto en la sección de normalización y estandarización. Por otro, el costo computacional del entrenamiento crece cuadrática o cúbicamente con el número de ejemplos, lo que dificulta su aplicación sobre conjuntos de datos grandes como los de C-MAPSS cuando se trabaja con ventanas deslizantes de muchas dimensiones. Finalmente, comparte la limitación estructural de los demás métodos revisados: opera sobre vectores de características planos, por lo que la estructura temporal debe incorporarse mediante las mismas estrategias de concatenación de ventanas o extracción de estadísticos agregados.\\[.15cm]
+
+Su inclusión como algoritmo de referencia es útil porque representa una familia distinta a la de los ensambles: un método de kernel con un único modelo global, lo que permite contrastar el desempeño del Predictor Gamma frente a un enfoque con otros supuestos y mecanismos de generalización completamente diferentes.
 
 \subsection{LSTM}
 
@@ -336,13 +394,54 @@ Las redes LSTM creadas por Hochreiter y Schmidhuber en 1997 \cite{hochreiter1997
 
 Para las tareas de regresión del RUL, se puede utilizar una arquitectura de many-to-one donde se alimentaría la red con la secuencia completa de la ventana de los pasos $t-w + 1$ a $t$ y la salida es un único valor continuo (RUL en el instante $t$). Esto se logra tomando el último estado oculto $h_{t}$ o aplicando una capa densa sobre la secuencia de salidas con pooling.\\[.15cm]
 
-Este es un modelo creado explícitamente par dependencias temporales a largo plazo, y a diferencia del Random Forest y el XGBoost, las LSTM si procesan la secuencia en orden aprendiendo automáticamente patrones temporales como tendencias de degradación, cambios en la pendiente o hasta correlaciones retardadas entre diferentes sensores, por lo que no se requiere de un Feature Engineering manual. Por otra parte, con las LSTM se puede lograr un aprendizaje de representaciones que no son precisamente lineales al poder aproximar funciones complejas. También se pueden manejar secuencias de longitud variable.\\[.15cm]
+Este es un modelo creado explícitamente para dependencias temporales a largo plazo, y a diferencia del Random Forest y el XGBoost, las LSTM si procesan la secuencia en orden aprendiendo automáticamente patrones temporales como tendencias de degradación, cambios en la pendiente o hasta correlaciones retardadas entre diferentes sensores, por lo que no se requiere de un Feature Engineering manual. Por otra parte, con las LSTM se puede lograr un aprendizaje de representaciones que no son precisamente lineales al poder aproximar funciones complejas y también se pueden manejar secuencias de longitud variable.\\[.15cm]
 
-Un desafío que se enfrenta al implementar este algoritmo es principalmente el costo computacional que representan especialmente en el caso de utilizar varias capas, requiriendo incluso el uso de una GPU para poder lograr un entrenamiento en tiempos razonables. De igual manera, se tiene una gran cantidad de hiperparámetros por lo que se puede llegar a situaciones de sobre ajuste o de una convergencia lenta durante el entrenamiento. Este algoritmo si requiere que las entradas estén escaladas además de la necesidad de grandes cantidades de datos para poder lograr una buena generalización. Las LSTM representan el estándar del Deep Learning para trabajar con series de tiempo y se han convertido en una opción popular para la estimación del RUL en diferentes aplicaciones industriales en los últimos años. Incluirlas en el trabajo permitiría la comparación de una arquitectura profunda de Deep Learning con un enfoque mucho más sencillo como lo son las memorias asociativas.
+Un desafío que se enfrenta al implementar este algoritmo es principalmente el costo computacional que representan especialmente en el caso de utilizar varias capas, requiriendo incluso el uso de una GPU para poder lograr un entrenamiento en tiempos razonables. De igual manera, se tiene una gran cantidad de hiperparámetros por lo que se puede llegar a situaciones de sobre ajuste o de una convergencia lenta durante el entrenamiento. Este algoritmo es de los que si requieren que las entradas estén escaladas además, tiene la necesidad de grandes cantidades de datos para poder lograr una buena generalización.\\[.15cm]
+
+
+Hoy en día las LSTM representan el estándar del Deep Learning para trabajar con series de tiempo y se han convertido en una opción popular para la estimación del RUL en diferentes aplicaciones industriales en los últimos años \cite{wu2018}. Incluirlas en el trabajo permitiría la comparación de una arquitectura profunda de Deep Learning con un enfoque mucho más sencillo como lo son las memorias asociativas.
 
 % -----------------------------------------------------------------------------
 % 2.9
 % -----------------------------------------------------------------------------
+\subsection{CNN 1D}
+
+Las redes neuronales convolucionales unidimensionales (CNN 1D) son un tipo de red neuronal feed-forward diseñada específicamente para procesar señales de una sola dimensión, como las series de tiempo pero aplicando filtros convolucionales a lo largo del eje temporal \cite{kiranyaz2021}. A diferencia de las redes completamente conectadas, no tratan cada paso de la secuencia como una entrada independiente sino que explotan la estructura local de toda la señal.
+
+La operación central es la convolución discreta en una dimensión. Un kernel de tamaño $k$, formado por pesos aprendibles, recorre la secuencia y produce un mapa de características:
+
+\[
+y_t = \sigma\left( b + \sum_{i=0}^{k-1} w_i \, x_{t+i} \right)
+\]
+
+Donde $\sigma$ es una función de activación, típicamente ReLU, y $w_i$ son los pesos compartidos del filtro. Al aplicar varios filtros en paralelo se obtienen varios mapas de características, cada uno sensible a un patrón distinto de la señal.\\[.15cm]
+
+Sobre cada mapa se aplica una capa de agrupamiento (pooling), generalmente un max pooling, que toma el valor máximo en ventanas contiguas y reduce la resolución temporal. Al apilar varias capas de convolución y agrupamiento, el campo receptivo de las neuronas crece de forma progresiva, de modo que las primeras capas detectan patrones locales, como cambios de pendiente o picos, y las más profundas combinan esos patrones en representaciones de mayor nivel. Finalmente, la salida se aplana o se resume mediante un pooling global y se conecta a una capa densa que produce el valor estimado del RUL \cite{cerqueira2024}.\\[.15cm]
+
+Dos propiedades explican su utilidad en este contexto. La primera es el uso compartido de pesos: los mismos filtros se aplican en todas las posiciones de la secuencia, lo que reduce drásticamente el número de parámetros frente a una red densa equivalente. La segunda es la invariancia a la traslación: un patrón de degradación se detecta de la misma forma sin importar en qué instante de la ventana aparezca, lo cual es deseable cuando el inicio de la falla no está alineado entre motores.\\[.15cm]
+
+Frente a los ensambles de árboles, la ventaja es que la red extrae las características directamente de las ventanas de sensores, sin necesidad de un diseño manual de indicadores. Frente a las LSTM, su ventaja es el costo: la convolución se puede calcular en paralelo sobre toda la secuencia, sin recurrencia, por lo que entrena considerablemente más rápido y con menor demanda de memoria, lo que la hace viable incluso sin GPU. Estas características han llevado a que las CNN se utilicen ampliamente para la estimación del RUL desde etapas tempranas \cite{babu2016}, y posteriormente se han propuesto variantes más profundas, con varias capas convolucionales apiladas, que mejoran el desempeño en este tipo de problemas \cite{li2018cnn}.\\[.15cm]
+
+Pero su limitación principal es el alcance del campo receptivo: para capturar dependencias temporales muy largas se requieren muchas capas, convoluciones dilatadas o la combinación con una LSTM, y por eso las CNN puras suelen ser más adecuadas para patrones de degradación local que para dependencias globales de la serie completa. Además también requieren de una entrada de longitud fija, lo que obliga a definir el tamaño de la ventana, y un agrupamiento agresivo puede eliminar información temporal fina relevante.\\[.15cm]
+
+En el contexto para este trabajo, la CNN 1D ocupa una posición intermedia entre los ensambles y las LSTM porque conserva el orden temporal de la señal a diferencia de los modelos que operan sobre características planas, pero con un costo computacional considerablemente menor que el presente en una arquitectura recurrente. Incluirla permite comparar al Predictor Gamma con un enfoque convolucional que también aprovecha la estructura secuencial de los datos.
+
+\subsection{Perceptrón multicapa (MLP)}
+
+El perceptrón multicapa (MLP) es la arquitectura de red neuronal más elemental y constituye la base sobre la que se construyen las arquitecturas profundas revisadas anteriormente. Se trata de una red feed-forward completamente conectada, en la que la información fluye de la capa de entrada hacia la capa de salida sin ciclos ni retroalimentación \cite{goodfellow2016}. Está compuesta por una capa de entrada, una o varias capas ocultas y una capa de salida, y cada neurona de una capa está conectada con todas las neuronas de la capa siguiente. Cada neurona calcula una combinación lineal de sus entradas ponderadas y le aplica una función de activación no lineal:
+
+\[
+h_j^{(l)} = \sigma\left( b_j^{(l)} + \sum_{i} w_{ij}^{(l)}\, h_i^{(l-1)} \right)
+\]
+
+Donde $h_j^{(l)}$ es la salida de la neurona $j$ de la capa $l$, $w_{ij}^{(l)}$ y $b_j^{(l)}$ son los pesos y el sesgo correspondientes, y $\sigma$ es la función de activación, típicamente ReLU en las capas ocultas. La no linealidad de $\sigma$ es lo que le da al MLP su capacidad expresiva: con un número suficiente de neuronas ocultas, un MLP puede aproximar de forma arbitrariamente precisa cualquier función continua, resultado conocido como teorema de aproximación universal.\\[.15cm]
+
+Para la estimación del RUL, el MLP recibe como entrada el vector de características planas obtenido de la ventana deslizante, y su capa de salida consta de una única neurona con activación lineal que produce el valor estimado del RUL. A diferencia de los modelos lineales, el MLP aprende combinaciones no lineales de las variables de entrada sin necesidad de especificarlas de forma manual, pero al igual que los ensambles de árboles no aprovecha la estructura temporal de la señal: el orden de los pasos dentro de la ventana es irrelevante para el modelo. En la literatura reciente se han propuesto arquitecturas íntegramente basadas en MLP para la estimación del RUL, lo que evidencia que esta familia sigue siendo competitiva frente a modelos más complejos \cite{rmixmlp2025}.\\[.15cm]
+
+Sus principales limitaciones son el elevado número de parámetros, que favorece el sobreajuste y hace necesaria la regularización mediante técnicas como el dropout o la disminución de pesos, y la dependencia de la normalización de las entradas, al igual que el SVR. Además, en arquitecturas muy profundas puede aparecer el problema del desvanecimiento del gradiente, aunque en su forma habitual de una o dos capas ocultas esta limitación es poco relevante.\\[.15cm]
+
+Su inclusión como algoritmo de referencia aporta un punto de comparación mínimo dentro de las redes neuronales: si un MLP con un vector de características planas logra un desempeño cercano al de las arquitecturas secuenciales, esto sugiere que la información temporal no está siendo el factor determinante, lo cual es una observación valiosa para justificar la complejidad de los modelos más avanzados frente al Predictor Gamma.
+
 \section{Predictor Gamma}
 
 % TODO (autor): sección pendiente. El Predictor Gamma aún no está implementado.
