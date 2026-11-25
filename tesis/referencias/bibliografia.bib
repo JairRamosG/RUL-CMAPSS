@@ -1,11 +1,35 @@
 % =============================================================================
-% BIBLIOGRAFÍA — Archivo BibTeX (backend biber)
+% BIBLIOGRAFÍA — Tesis RUL-CMAPSS (backend biber, estilo numeric)
 %
-% Agregar aquí las referencias citadas en el documento con \cite{clave}.
-% El proyecto ya cuenta con una lista completa en references/bibliography.md
-% (papers seminales M1..M23, C1..C4, etc.). Migrarlas aquí en formato BibTeX.
+% Migrada desde references/bibliography.md
+% Organizada por categoría. Las claves se citan con \cite{clave}.
 % =============================================================================
 
+% =============================================================================
+% LIBROS (contexto y fundamento del mantenimiento)
+% =============================================================================
+@book{mobley2002,
+  author    = {Mobley, R. Keith},
+  title     = {An Introduction to Predictive Maintenance},
+  edition   = {2},
+  publisher = {Butterworth-Heinemann},
+  address   = {Amsterdam},
+  year      = {2002},
+  isbn      = {0750675314},
+}
+
+@book{moubray1997,
+  author    = {Moubray, John},
+  title     = {Reliability-Centered Maintenance},
+  edition   = {2},
+  publisher = {Industrial Press},
+  year      = {1997},
+  isbn      = {0831131462},
+}
+
+% =============================================================================
+% PAPERS SEMINALES / LANDMARK (S1--S8)
+% =============================================================================
 @inproceedings{saxena2008,
   author    = {Saxena, Abhinav and Goebel, Kai and Simon, Donald and Eklund, Neil},
   title     = {Damage Propagation Modeling for Aircraft Engine Run-to-Failure Simulation},
@@ -14,13 +38,21 @@
   address   = {Denver, CO},
 }
 
-@article{demsar2006,
-  author  = {Demšar, Janez},
-  title   = {Statistical Comparisons of Classifiers over Multiple Data Sets},
-  journal = {Journal of Machine Learning Research},
-  volume  = {7},
-  pages   = {1--30},
-  year    = {2006},
+@article{si2011,
+  author  = {Si, Xiao-Sheng and Wang, Wenbin and Hu, Chang-Hua and Zhou, Dong-Hua},
+  title   = {Remaining Useful Life Estimation -- A Review on the Statistical Data Driven Approaches},
+  journal = {European Journal of Operational Research},
+  volume  = {213},
+  number  = {1},
+  pages   = {1--14},
+  year    = {2011},
+}
+
+@article{li2018comparison,
+  author  = {Li, Xiang and Ding, Qian and Sun, Jian-Qiao},
+  title   = {A Comparison Study of Data-Driven Prognostics Methods for Aircraft Engines},
+  journal = {IEEE Access},
+  year    = {2018},
 }
 
 @inproceedings{heimes2008,
@@ -30,13 +62,198 @@
   year      = {2008},
 }
 
-@article{bergstra2011,
-  author  = {Bergstra, James and Bardenet, Rémi and Bengio, Yoshua and Kégl, Balázs},
-  title   = {Algorithms for Hyper-Parameter Optimization},
-  journal = {Advances in Neural Information Processing Systems},
-  volume  = {24},
-  pages   = {2546--2554},
-  year    = {2011},
+@inproceedings{coble2009,
+  author    = {Coble, Jamie and Hines, J. Wesley},
+  title     = {Identifying Optimal Prognostic Parameters from Data: A Genetic Algorithms Approach},
+  booktitle = {Proceedings of the Annual Conference of the Prognostics and Health Management Society},
+  year      = {2009},
+}
+
+@inproceedings{zheng2017,
+  author    = {Zheng, Shuai and Ristovski, Kosta and Farahat, Ahmed and Gupta, Chetan},
+  title     = {Long Short-Term Memory Network for Remaining Useful Life Estimation},
+  booktitle = {Proceedings of the IEEE International Conference on Prognostics and Health Management (ICPHM)},
+  pages     = {88--95},
+  year      = {2017},
+}
+
+@inproceedings{babu2016,
+  author    = {Babu, Giduthuri Sateesh and Zhao, Peilin and Li, Xiao-Li},
+  title     = {Deep Convolutional Neural Network Based Regression Approach for Estimation of Remaining Useful Life},
+  booktitle = {Database Systems for Advanced Applications (DASFAA)},
+  publisher = {Springer},
+  pages     = {214--228},
+  year      = {2016},
+}
+
+@misc{saxena2008dataset,
+  author = {Saxena, Abhinav and Goebel, Kai},
+  title  = {PHM08 Challenge Data Set},
+  howpublished = {NASA Ames Prognostics Data Repository},
+  year   = {2008},
+}
+
+% =============================================================================
+% CONJUNTOS DE DATOS (BENCHMARKS) PARA ESTIMACIÓN DEL RUL
+% =============================================================================
+@inproceedings{nectoux2012,
+  author    = {Nectoux, Patrick and Gouriveau, Rafael and Medjaher, Kamal and Ramasso, Emmanuel and Chebel-Morello, Brigitte and Zerhouni, Noureddine and Varnier, Christophe},
+  title     = {{PRONOSTIA}: An Experimental Platform for Bearings Accelerated Degradation Tests},
+  booktitle = {Proceedings of the IEEE International Conference on Prognostics and Health Management (PHM)},
+  address   = {Denver, CO},
+  pages     = {1--8},
+  year      = {2012},
+}
+
+@article{qiu2006,
+  author  = {Qiu, Hai and Lee, Jay and Lin, Jing and Yu, Gang},
+  title   = {Wavelet Filter-Based Weak Signature Detection Method and Its Application on Rolling Element Bearing Prognostics},
+  journal = {Journal of Sound and Vibration},
+  volume  = {289},
+  number  = {4--5},
+  pages   = {1066--1090},
+  year    = {2006},
+  doi     = {10.1016/j.jsv.2005.03.007},
+}
+
+@misc{saha2007,
+  author       = {Saha, Bhaskar and Goebel, Kai},
+  title        = {Battery Data Set},
+  howpublished = {NASA Prognostics Data Repository, NASA Ames Research Center},
+  address      = {Moffett Field, CA},
+  year         = {2007},
+}
+
+@misc{howey2017,
+  author       = {Howey, David and Birkl, Christoph},
+  title        = {Oxford Battery Degradation Dataset 1},
+  howpublished = {University of Oxford},
+  year         = {2017},
+  doi          = {10.5287/bodleian:KO2kdmYGg},
+}
+
+@misc{agogino2007,
+  author       = {Agogino, Alice and Goebel, Kai},
+  title        = {Milling Data Set},
+  howpublished = {BEST Lab, UC Berkeley; NASA Prognostics Data Repository, NASA Ames Research Center},
+  address      = {Moffett Field, CA},
+  year         = {2007},
+}
+
+@article{xing2013,
+  author  = {Xing, Yinjiao and Ma, Eden W. M. and Tsui, Kwok-Leung and Pecht, Michael},
+  title   = {An Ensemble Model for Predicting the Remaining Useful Performance of Lithium-Ion Batteries},
+  journal = {Microelectronics Reliability},
+  volume  = {53},
+  number  = {6},
+  pages   = {811--820},
+  year    = {2013},
+}
+
+% =============================================================================
+% PAPERS DE METODOLOGÍA (M1--M23)
+% =============================================================================
+% TODO: completar autores (faltan en references/bibliography.md)
+@article{caelstm2025,
+  title   = {A Deep Learning-Based Prognostic Approach for Predicting Turbofan Engine Degradation and Remaining Useful Life},
+  journal = {Scientific Reports},
+  year    = {2025},
+}
+
+@article{zhou2023,
+  author  = {Zhou, Shengyang and Yao, Yingying and Liu, Aijun and Wang, Feng and Chen, Li and Xiong, Rui},
+  title   = {Multiform Informed Machine Learning Based on Piecewise and Weibull for Engine Remaining Useful Life Prediction},
+  journal = {Sensors},
+  volume  = {23},
+  publisher = {MDPI},
+  year    = {2023},
+}
+
+@article{xiao2025,
+  author  = {Xiao, Gang and Jin, Chunhua and Bai, Jun},
+  title   = {Remaining Useful Life Prediction for Aero-Engines Based on Multi-Scale Dilated Fusion Attention Model},
+  journal = {Applied Sciences},
+  publisher = {MDPI},
+  year    = {2025},
+}
+
+@article{wang2025dual,
+  author  = {Wang, Feng and Liu, Aijun and Qu, Chen and Xiong, Rui and L{\"u}, Cheng},
+  title   = {A Deep-Learning Method for Remaining Useful Life Prediction of Power Machinery via Dual-Attention Mechanism},
+  journal = {Sensors},
+  publisher = {MDPI},
+  year    = {2025},
+}
+
+@article{demsar2006,
+  author  = {Dem{\v{s}}ar, Janez},
+  title   = {Statistical Comparisons of Classifiers over Multiple Data Sets},
+  journal = {Journal of Machine Learning Research},
+  volume  = {7},
+  pages   = {1--30},
+  year    = {2006},
+}
+
+@article{asif2022,
+  author  = {Asif, Owais and Haider, Shoaib A. and Naqvi, Syed Rameez and Zaki, Jabran F. and Kwak, Kyung-Sup and Islam, S. M. Riazul},
+  title   = {A Deep Learning Model for Remaining Useful Life Prediction of Aircraft Turbofan Engine on C-MAPSS Dataset},
+  journal = {IEEE Access},
+  volume  = {10},
+  pages   = {95425--95440},
+  year    = {2022},
+}
+
+@article{madjour2023,
+  author  = {Madjour, H. and Zermane, H. and Rahmouni, D. and Mouss, M. D.},
+  title   = {Comparative Analysis of Deep Learning and Decision Tree Approaches for Predicting Aircraft Engine RUL},
+  journal = {Facta Universitatis, Series: Mechanical Engineering},
+  year    = {2023},
+}
+
+@article{borst2023,
+  author  = {Borst, N. G. and Verhagen, W. J. C.},
+  title   = {Introducing CNN-LSTM Network Adaptations to Improve RUL Prediction},
+  journal = {The Aeronautical Journal},
+  year    = {2023},
+}
+
+@article{rmixmlp2025,
+  author  = {Song, Shunran and Wang, Yanyan and Qin, Jinning and Zhang, Honglin and Ma, Xurui},
+  title   = {A Fully Multilayer Perceptron-Based Model with Controllable Parameters for Remaining Useful Life Prediction},
+  journal = {Measurement Science and Technology},
+  volume  = {36},
+  number  = {4},
+  pages   = {046215},
+  year    = {2025},
+  doi     = {10.1088/1361-6501/adc61e},
+}
+
+@inproceedings{ma2020,
+  author    = {Ma, Zhuo and Guo, Jiang and Mao, Shen and Gu, Tian},
+  title     = {An Interpretability Research of the XGBoost Algorithm in RUL Prediction},
+  booktitle = {Proceedings of the IEEE International Conference on Big Data, Cloud Computing, and Data Science Engineering (ICBASE)},
+  year      = {2020},
+}
+
+% TODO: completar autores
+@misc{arxiv2026comparative,
+  title = {Remaining Useful Life Estimation: Comparative Study of Classical, CNN, and LSTM Approaches},
+  howpublished = {arXiv preprint},
+  year  = {2026},
+}
+
+@article{ruvaifa2026,
+  author  = {Ruvaifa, Maryam and Banerjee, Prateek and Habib, Ahsan},
+  title   = {Evaluating the Impact of Data Preprocessing on Deep Neural Architectures for RUL Estimation},
+  journal = {Array},
+  year    = {2026},
+}
+
+% TODO: completar autores
+@misc{arxiv2026stacking,
+  title = {A Deep Learning-Based Stacking Ensemble Framework for Turbofan Engine RUL Prediction},
+  howpublished = {arXiv preprint},
+  year  = {2026},
 }
 
 @inproceedings{akiba2019,
@@ -45,4 +262,315 @@
   booktitle = {Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining},
   pages     = {2623--2631},
   year      = {2019},
+}
+
+@inproceedings{zaharia2018,
+  author    = {Zaharia, Matei and Chen, Andrew and Davidson, Aaron and Ghodsi, Ali and Hong, Sue Ann and Konwinski, Andy and Murching, Siddharth and Nykodym, Tomas and Ogilvie, Paul and Parkhe, Mani and Xie, Fen and Zumar, Corey},
+  title     = {Accelerating the Machine Learning Lifecycle with MLflow},
+  booktitle = {IEEE Data Engineering Bulletin},
+  year      = {2018},
+}
+
+@article{garcia2008,
+  author  = {Garc{\'i}a, Salvador and Herrera, Francisco},
+  title   = {An Extension on ``Statistical Comparisons of Classifiers over Multiple Data Sets'' for All Pairwise Comparisons},
+  journal = {Journal of Machine Learning Research},
+  volume  = {9},
+  pages   = {2677--2694},
+  year    = {2008},
+}
+
+@article{greenhouse1959,
+  author  = {Greenhouse, Samuel W. and Geisser, Seymour},
+  title   = {On Methods in the Analysis of Profile Data},
+  journal = {Psychometrika},
+  volume  = {24},
+  number  = {2},
+  pages   = {95--112},
+  year    = {1959},
+}
+
+@article{breiman2001,
+  author  = {Breiman, Leo},
+  title   = {Random Forests},
+  journal = {Machine Learning},
+  volume  = {45},
+  number  = {1},
+  pages   = {5--32},
+  year    = {2001},
+}
+
+@inproceedings{chen2016,
+  author    = {Chen, Tianqi and Guestrin, Carlos},
+  title     = {XGBoost: A Scalable Tree Boosting System},
+  booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  pages     = {785--794},
+  year      = {2016},
+}
+
+@inproceedings{ke2017,
+  author    = {Ke, Guolin and Meng, Qi and Finley, Thomas and Wang, Taifeng and Chen, Wei and Ma, Weidong and Ye, Qiwei and Liu, Tie-Yan},
+  title     = {LightGBM: A Highly Efficient Gradient Boosting Decision Tree},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  pages     = {3146--3154},
+  year      = {2017},
+}
+
+@article{smola2004,
+  author  = {Smola, Alex J. and Sch{\"o}lkopf, Bernhard},
+  title   = {A Tutorial on Support Vector Regression},
+  journal = {Statistics and Computing},
+  volume  = {14},
+  number  = {3},
+  pages   = {199--222},
+  year    = {2004},
+}
+
+@article{wu2018,
+  author  = {Wu, Yuting and Yuan, Mei and Dong, Shaopeng and Lin, Li and Liu, Yingqi},
+  title   = {Remaining Useful Life Estimation of Engineered Systems Using Vanilla LSTM Neural Networks},
+  journal = {Neurocomputing},
+  volume  = {275},
+  pages   = {167--179},
+  year    = {2018},
+}
+
+@article{li2018cnn,
+  author  = {Li, Xiang and Ding, Qian and Sun, Jian-Qiao},
+  title   = {Remaining Useful Life Estimation in Prognostics Using Deep Convolution Neural Networks},
+  journal = {Reliability Engineering \& System Safety},
+  volume  = {172},
+  pages   = {1--11},
+  year    = {2018},
+}
+
+% =============================================================================
+% PAPERS DE COMPARACIÓN DE RESULTADOS (C1--C5)
+% =============================================================================
+@inproceedings{wang2018bilstm,
+  author    = {Wang, Jinjiang and Wen, Guochao and Yang, Shuo and Liu, Yingqi},
+  title     = {Remaining Useful Life Estimation in Prognostics Using Deep Bidirectional LSTM Neural Network},
+  booktitle = {Proceedings of the Prognostics and System Health Management Conference (PHM-Chongqing)},
+  year      = {2018},
+}
+
+@article{list2019,
+  author  = {List, Henrik B. A. and Bj{\o}rkhaug, Erik and {\AE}s{\o}y, Vilmar and Eidsvik, Sindre and Zhang, Houxiang},
+  title   = {Remaining Useful Life Predictions for Turbofan Engine Degradation Using Semi-Supervised Deep Architecture},
+  journal = {Reliability Engineering \& System Safety},
+  volume  = {183},
+  pages   = {240--251},
+  year    = {2019},
+}
+
+% TODO: completar autores
+@article{scirep2026cnnlstm,
+  title   = {Temporal-Sequential Modeling for RUL Estimation of Turbofan Engine},
+  journal = {Scientific Reports},
+  year    = {2026},
+}
+
+@article{sardar2026,
+  author  = {Sardar, Ahmed and Al Ghalayini, Sami M. and Alkhalifah, Salman and Alwabel, Rayan and Vizcarra, Cristian and Al Meanazel, Osama T.},
+  title   = {A Hybrid LSTM-XGBoost Approach with SHAP Explainability Using the NASA C-MAPSS Dataset},
+  journal = {Journals of GC},
+  year    = {2026},
+}
+
+% TODO: completar autores
+@misc{hal2024,
+  title   = {Boosting Regression for Aircraft Engine PdM with Random-Sampling Class Balancing},
+  howpublished = {HAL},
+  year    = {2024},
+}
+
+% =============================================================================
+% PAPERS DE EFICIENCIA COMPUTACIONAL (E1--E3)
+% =============================================================================
+@article{kang2021,
+  author  = {Kang, Ziwei and Catal, Cagatay and Tekinerdogan, Bedir},
+  title   = {Remaining Useful Life (RUL) Prediction of Equipment in Production Lines Using Artificial Neural Networks},
+  journal = {Sensors},
+  volume  = {21},
+  publisher = {MDPI},
+  year    = {2021},
+}
+
+@inproceedings{caricato2021,
+  author    = {Caricato, A. and Ficarella, A. and Spada Chiodo, L.},
+  title     = {Prognostic Techniques for Aeroengine Health Assessment and RUL Estimation},
+  booktitle = {E3S Web of Conferences},
+  year      = {2021},
+}
+
+% TODO: completar autores
+@inproceedings{scitepress2026,
+  title     = {Real-Time Predictive Maintenance with XGBoost RUL Estimates (N-CMAPSS)},
+  booktitle = {Proceedings of SciTePress},
+  year      = {2026},
+}
+
+% =============================================================================
+% PAPERS DE EDA — ANÁLISIS EXPLORATORIO (EDA1--EDA4)
+% =============================================================================
+% TODO: completar autores
+@article{applsci2025linear,
+  title   = {Linear Methods for Predictive Maintenance: The Case of NASA C-MAPSS Datasets},
+  journal = {Applied Sciences},
+  publisher = {MDPI},
+  year    = {2025},
+}
+
+@article{patel2025,
+  author  = {Patel, S.},
+  title   = {Explainable Remaining-Useful-Life Prediction for Turbofan Engines},
+  journal = {International Journal of Research in Science and Technology},
+  year    = {2025},
+}
+
+% TODO: completar autores
+@inproceedings{icmcsi2025,
+  title     = {Predictive Maintenance of Aircraft Engines: Machine Learning Approaches for RUL Estimation},
+  booktitle = {IEEE International Conference on Machine Learning and Computing Systems Intelligence (ICMCSI)},
+  year      = {2025},
+}
+
+% TODO: completar autores
+@article{sensors2023multiscale,
+  title   = {A Hybrid Method for Remaining Useful Life Estimation Based on a Multi-Scale Deep Learning Model},
+  journal = {Sensors},
+  publisher = {MDPI},
+  year    = {2023},
+}
+
+% =============================================================================
+% PAPERS DE OPTIMIZACIÓN DE HIPERPARÁMETROS (referencias complementarias)
+% =============================================================================
+@inproceedings{bergstra2011,
+  author  = {Bergstra, James and Bardenet, R{\'e}mi and Bengio, Yoshua and K{\'e}gl, Bal{\'a}zs},
+  title   = {Algorithms for Hyper-Parameter Optimization},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume  = {24},
+  pages   = {2546--2554},
+  year    = {2011},
+}
+
+% =============================================================================
+% REFERENCIAS DEL CAPÍTULO 2 — Marco Teórico y Estado del Arte
+% =============================================================================
+@techreport{iso14224,
+  author      = {{International Organization for Standardization}},
+  title       = {ISO 14224:2016 Petroleum, Petrochemical and Natural Gas Industries --- Collection and Exchange of Reliability and Maintenance Data for Equipment},
+  institution = {ISO},
+  type        = {Standard},
+  number      = {ISO 14224:2016},
+  year        = {2016},
+}
+
+@book{campbell2001,
+  author    = {Campbell, John D. and Jardine, Andrew K. S.},
+  title     = {Maintenance Excellence: Optimizing Equipment Life-Cycle Decisions},
+  publisher = {Marcel Dekker},
+  address   = {New York},
+  year      = {2001},
+}
+
+@article{hochreiter1997,
+  author  = {Hochreiter, Sepp and Schmidhuber, J{\"u}rgen},
+  title   = {Long Short-Term Memory},
+  journal = {Neural Computation},
+  volume  = {9},
+  number  = {8},
+  pages   = {1735--1780},
+  year    = {1997},
+}
+
+@inproceedings{saxena2010,
+  author    = {Saxena, Abhinav and Celaya, Jos{\'e} and Saha, Bhaskar and Saha, Sankalita and Goebel, Kai},
+  title     = {Metrics for Evaluating Performance of Prognostic Techniques},
+  booktitle = {Proceedings of the 2010 Prognostics and Health Management Conference},
+  pages     = {1--17},
+  publisher = {IEEE},
+  year      = {2010},
+}
+
+@article{vanbuuren2011,
+  author  = {van Buuren, Stef and Groothuis-Oudshoorn, Karin},
+  title   = {mice: Multivariate Imputation by Chained Equations in {R}},
+  journal = {Journal of Statistical Software},
+  volume  = {45},
+  number  = {3},
+  pages   = {1--67},
+  year    = {2011},
+  doi     = {10.18637/jss.v045.i03},
+}
+
+@inproceedings{oehmcke2016,
+  author    = {Oehmcke, Stefan and Zielinski, Oliver and Kramer, Oliver},
+  title     = {{kNN} Ensembles with Penalized {DTW} for Multivariate Time Series Imputation},
+  booktitle = {2016 International Joint Conference on Neural Networks (IJCNN)},
+  pages     = {2774--2781},
+  publisher = {IEEE},
+  year      = {2016},
+  doi       = {10.1109/IJCNN.2016.7727549},
+}
+
+@book{nielsen2019,
+  author    = {Nielsen, Aileen},
+  title     = {Practical Time Series Analysis: Prediction with Statistics and Machine Learning},
+  publisher = {O'Reilly Media},
+  address   = {Sebastopol, CA},
+  year      = {2019},
+  chapter   = {2},
+  pages     = {55--57},
+}
+
+@book{joseph2022,
+  author    = {Joseph, Manu},
+  title     = {Modern Time Series Forecasting with Python: Explore Industry-Ready Time Series Forecasting Using Modern Machine Learning and Deep Learning},
+  publisher = {Packt Publishing},
+  address   = {Birmingham, UK},
+  year      = {2022},
+  chapter   = {19},
+  pages     = {491},
+}
+
+@book{geron2017,
+  author    = {G{\'e}ron, Aur{\'e}lien},
+  title     = {Hands-On Machine Learning with Scikit-Learn and TensorFlow: Concepts, Tools, and Techniques to Build Intelligent Systems},
+  publisher = {O'Reilly Media},
+  address   = {Sebastopol, CA},
+  year      = {2017},
+  chapter   = {7},
+  pages     = {181},
+}
+
+@article{kiranyaz2021,
+  author  = {Kiranyaz, Serkan and Avci, Onur and Abdeljaber, Osama and Ince, Turker and Gabbouj, Moncef and Inman, Daniel J.},
+  title   = {1D Convolutional Neural Networks and Applications: A Survey},
+  journal = {Mechanical Systems and Signal Processing},
+  volume  = {151},
+  pages   = {107398},
+  year    = {2021},
+  doi     = {10.1016/j.ymssp.2020.107398},
+}
+
+@book{cerqueira2024,
+  author    = {Cerqueira, Vitor and Roque, Lu{\'i}s},
+  title     = {Deep Learning for Time Series Cookbook: Use PyTorch and Python Recipes for Forecasting, Classification, and Anomaly Detection},
+  publisher = {Packt Publishing},
+  address   = {Birmingham, UK},
+  year      = {2024},
+  chapter   = {2},
+  pages     = {64},
+}
+
+@book{goodfellow2016,
+  author    = {Goodfellow, Ian and Bengio, Yoshua and Courville, Aaron},
+  title     = {Deep Learning},
+  publisher = {MIT Press},
+  address   = {Cambridge, MA},
+  year      = {2016},
+  chapter   = {6},
 }
