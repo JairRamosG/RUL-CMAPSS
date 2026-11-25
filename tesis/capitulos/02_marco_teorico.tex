@@ -508,11 +508,11 @@ Con base en lo anterior, FD001 y FD002 consideran un solo modo de falla (HPC), m
 % -----------------------------------------------------------------------------
 \section{Medidas de desempeño}
 
-La evaluación de los algoritmos es importante para poder determinar si el Predictor Gamma puede superar o igualar alguno de los algoritmos anteriormente abordados para la tarea de estimación del RUL. En este proyecto se emplearán medidas de desempeño cuantitativa estándar para esa tarea, además, se va a complementar con pruebas estadísticas que permiten determinar si las diferencias observadas son estadísticamente significativas o pueden deberse al azar.
+La evaluación de los algoritmos es importante para poder determinar si el Predictor Gamma puede superar o igualar alguno de los algoritmos anteriormente abordados para la tarea de estimación del RUL. En este proyecto se emplearán medidas de desempeño cuantitativas estándar para esa tarea, además, se va a complementar con pruebas estadísticas que permiten determinar si las diferencias observadas son estadísticamente significativas o pueden deberse al azar.
 
-\subsection{Estimación del RUL}
+\subsection{Error absoluto medio (MAE)}
 
-El error absoluto medio o MAE, mide la magnitud promedio de los errores sin considerar su dirección, sea una sobreestimación o una subestimación. Está definida como:
+El error absoluto medio (Mean Absolute Error) mide la magnitud promedio de los errores sin considerar su dirección, sea una sobreestimación o una subestimación. Está definido como:
 
 \[
     \mathrm{MAE} = \frac{1}{n} \sum_{i=1}^{n} \left| y_i - \hat{y}_i \right|
@@ -520,7 +520,9 @@ El error absoluto medio o MAE, mide la magnitud promedio de los errores sin cons
 
 donde $y_i$ es el RUL verdadero, $\hat{y}_i$ es el RUL predicho y $n$ es el número total de ejemplos de prueba. El MAE se expresa en las mismas unidades de la variable objetivo con la que se está trabajando, además de ser una medida robusta frente a valores atípicos.\\[.15cm]
 
-La raíz del error cuadrático medio o RMSE penaliza más los errores que son grandes debido a la operación de elevar al cuadrado. Es de las medidas de desempeño más utilizadas en la literatura del RUL y permite comparar directamente los resultados reportados por otros autores.
+\subsection{Raíz del error cuadrático medio (RMSE)}
+
+La raíz del error cuadrático medio (Root Mean Squared Error) penaliza más los errores que son grandes debido a la operación de elevar al cuadrado. Es de las medidas de desempeño más utilizadas en la literatura del RUL y permite comparar directamente los resultados reportados por otros autores.
 
 \[
 \mathrm{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}
@@ -528,18 +530,31 @@ La raíz del error cuadrático medio o RMSE penaliza más los errores que son gr
 
 La principal desventaja que se tiene con esta medida es su sensibilidad a los valores atípicos, porque un solo error grande puede dominar gran parte del resultado. Debido a que en series de tiempo reales de la industria pueden existir fallos esporádicos de sensores, llega a ser preferible utilizar el MAE.\\[.15cm]
 
-La puntuación de simetría o Score asimétrico es otra medida de desempeño implementada en tareas de RUL. En muchas aplicaciones, sobreestimar el RUL es mucho más peligroso que subestimarlo, porque puede llevar a no programar el mantenimiento a tiempo, resultando en una falla no planificada con sus consecuencias económicas y de seguridad. Por el contrario, subestimar el RUL solo provoca un mantenimiento ligeramente anticipado, lo cual es menos costoso en todos los aspectos. Para poder reflejar la asimetría, Saxena en el 2010 \cite{saxena2010} propuso una puntuación que penaliza más la sobreestimación que la subestimación de la siguiente manera:
+\subsection{Error porcentual absoluto medio simétrico (SMAPE)}
+
+El error porcentual absoluto medio simétrico (Symmetric Mean Absolute Percentage Error) expresa el error como un porcentaje del valor observado, por lo que su resultado es adimensional y permite comparar el desempeño entre subconjuntos cuyos valores de RUL tienen escalas distintas. Se define como:
 
 \[
-\text{Score} = \frac{1}{n} \sum_{i=1}^{n} \left( e^{-\alpha \, d_i} - 1 \right)
+\mathrm{SMAPE} = \frac{100\%}{n} \sum_{i=1}^{n} \frac{2\left| y_i - \hat{y}_i \right|}{\left| y_i \right| + \left| \hat{y}_i \right|}
 \]
+
+Su valor ideal es $0\%$ y crece conforme las predicciones se alejan del valor real. Su principal limitación es que la división entre $|y_i| + |\hat{y}_i|$ se vuelve inestable cuando el RUL verdadero y el predicho son cercanos a cero, situación que ocurre precisamente en la etapa final de la vida útil; por ello se recomienda reportarlo junto con las medidas absolutas (MAE y RMSE) y no como criterio único.\\[.15cm]
+
+\subsection{NASA Score}
+
+La puntuación asimétrica de la NASA, también conocida como NASA Score o PHM08 Score, es la medida de desempeño específica de los conjuntos C-MAPSS. A diferencia del MAE y del RMSE, no trata igual una sobreestimación y una subestimación: sobreestimar el RUL es más peligroso porque puede llevar a no programar el mantenimiento a tiempo y provocar una falla no planificada, mientras que subestimarlo solo adelanta el mantenimiento. El criterio del reto PHM08 \cite{saxena2008}, con los parámetros adoptados en el benchmark C-MAPSS \cite{ramasso2014}, incorpora esta asimetría mediante una penalización exponencial:
+
 \[
-d_i =
+S = \sum_{i=1}^{n} s_i, \qquad
+s_i =
 \begin{cases}
-y_i - \hat{y}_i, & \text{si } \hat{y}_i < y_i \quad \text{(subestimación)} \\
-\hat{y}_i - y_i, & \text{si } \hat{y}_i \geq y_i \quad \text{(sobrestimación)}
+e^{-d_i/13} - 1, & \text{si } d_i < 0 \quad \text{(subestimación)} \\
+e^{\,d_i/10} - 1, & \text{si } d_i \geq 0 \quad \text{(sobreestimación)}
 \end{cases}
+\qquad d_i = \hat{y}_i - y_i
 \]
+
+donde $d_i$ es el error de predicción, definido como el RUL predicho menos el RUL verdadero. Cuando $d_i < 0$ la predicción es anticipada (subestimación) y el error se divide entre 13, mientras que cuando $d_i \geq 0$ la predicción es tardía (sobreestimación) y se divide entre 10, de modo que para una misma magnitud de error la penalización tardía es mayor. El resultado se obtiene como la suma de las penalizaciones de todas las unidades y no como su promedio, por lo que su escala depende del número de unidades evaluadas y solo es comparable entre experimentos realizados sobre el mismo conjunto de prueba. El valor ideal es cero y, debido a la forma exponencial, unas pocas predicciones tardías con error grande pueden dominar el resultado total. Los valores de 13 y 10 empleados corresponden a la convención del benchmark C-MAPSS \cite{ramasso2014}.
 
 % -----------------------------------------------------------------------------
 % 2.12
@@ -572,9 +587,27 @@ La prueba de Friedman es un equivalente no paramétrico a ANOVA de dos vías par
 
 \subsection{Test post-hoc de Nemenyi}
 
-Cuando la prueba de Friedman rechaza la hipótesis nula, se concluye que al menos un par de algoritmos difiere, pero no se identifica cuál. Para determinarlo se aplican pruebas post-hoc por pares. La prueba de Nemenyi compara simultáneamente todos los pares de algoritmos a partir de sus rangos promedio $\bar{R}_i$ obtenidos en la prueba de Friedman, controlando el error tipo I para el conjunto completo de comparaciones.\\[.15cm]
+Cuando la prueba de Friedman rechaza la hipótesis nula y ya sabemos que al menos un par de algoritmos si difieren, aún no sabemos cuáles de estos son. Lo natural sería comparar todos los pares con pruebas individuales, sin embargo hacerlo así infla la probabilidad de declarar diferencias que no existen. En una prueba de hipótesis, se conoce como un error del tipo I o también falso positivo a la acción de rechazar la hipótesis nula cuando en realidad es cierta, y su probabilidad máxima es $\alpha$. Al repetir la prueba para cada par cada comparación aporta su propia probabilidad de falso positivo, de modo que la probabilidad de equivocarse al menos una vez en todo el conjunto crece rápidamente con el número de pares. A esa probabilidad conjunta se le conoce como tasa de error por familia y es la razón por la que se necesita una prueba post-hoc que la controle en lugar de varias comparaciones independientes. La tabla~\ref{tab:fwer} muestra este crecimiento para $\alpha=0.05$ bajo el supuesto de comparaciones independientes.\\[.15cm]
 
-Nemenyi define una diferencia crítica a partir de la cual dos rangos promedio se consideran estadísticamente distintos. Para $k$ algoritmos evaluados sobre $N$ conjuntos de datos, la diferencia crítica se calcula como:
+\begin{table}[H]
+\centering
+\small
+\caption{Crecimiento de la probabilidad de al menos un falso positivo conforme aumenta el número de comparaciones por pares, para $\alpha = 0.05$ y comparaciones independientes.}
+\label{tab:fwer}
+\begin{tabular}{c c c}
+\toprule
+\textbf{Algoritmos} ($k$) & \textbf{Pares} ($m$) & \textbf{Probabilidad} \\
+\midrule
+3 & 3 & 0.14 \\
+5 & 10 & 0.40 \\
+8 & 28 & 0.76 \\
+10 & 45 & 0.90 \\
+15 & 105 & 0.995 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Frente a ese problema, la prueba de Nemenyi controla la tasa de error de todas las comparaciones por pares de manera simultánea. Esta prueba define una diferencia crítica a partir de la cual dos rangos promedio se consideran estadísticamente distintos. Para $k$ algoritmos evaluados sobre $N$ conjuntos de datos, la diferencia crítica se calcula como:
 
 \[
 CD = q_{\alpha} \sqrt{\frac{k(k+1)}{6N}}
@@ -586,7 +619,7 @@ donde $q_{\alpha}$ es el valor crítico de la distribución del rango studentiza
 \left| \bar{R}_i - \bar{R}_j \right| > CD
 \]
 
-Los resultados suelen representarse mediante un diagrama de diferencias críticas, en el que los algoritmos se ordenan por rango promedio y se unen con una barra horizontal aquellos pares cuya diferencia no supera $CD$. En este trabajo, la prueba de Nemenyi se aplica únicamente cuando la prueba de Friedman resulta significativa, y complementa la comparación por pares del Predictor Gamma contra cada uno de los algoritmos de referencia.
+Los resultados suelen representarse mediante un diagrama de diferencias críticas, en el que los algoritmos se ordenan por rango promedio y se unen con una barra horizontal aquellos pares cuya diferencia no supera $CD$. En este trabajo, la prueba de Nemenyi se aplica únicamente cuando la prueba de Friedman resulta significativa, y complementa la comparación por pares del Predictor Gamma contra cada uno de los algoritmos de referencia.\\[.15cm]
 
 Para poder asegurar que en trabajos a futuro se pueda hacer una réplica de los experimentos, se va a ajustar en un inicio con una semilla aleatoria toda la experimentación para cada uno de los algoritmos y procesos en los que se vea involucrada la aleatoriedad. Además, se almacenarán las predicciones de los modelos en archivos CSV junto con los tiempos de entrenamiento.
 
