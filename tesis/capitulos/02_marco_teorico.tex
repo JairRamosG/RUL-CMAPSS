@@ -473,11 +473,11 @@ La elección de C-MAPSS en este trabajo se justifica por tres razones: El primer
 
 \subsection{C-MAPSS}
 
-El C-MAPSS (Commercial Modular Aero-Propulsion System Simulation) \cite{saxena2008} es una herramienta de simulación para modelar el comportamiento termodinámico de motores de turbofán a gran escala. Fue diseñado originalmente para estudios de control de motores pero posteriormente se adaptó para poder generar series de tiempo de degradación hasta la falla con fines de investigación en pronósticos de salud. En este conjunto de datos se modela un motor turbofán de doble eje con flujo de derivación, integrando ventilador de entrada, compresores de alta y baja presión, cámara de combustión y turbinas de alta y baja presión.\\[.15cm]
+El C-MAPSS (Commercial Modular Aero-Propulsion System Simulation) \cite{saxena2008} es una herramienta de simulación para modelar el comportamiento termodinámico de motores de turbofán a gran escala. Fue diseñado originalmente para estudios de control de motores pero posteriormente se adaptó para poder generar series de tiempo de degradación hasta la falla con fines de investigación en pronósticos de salud de equipos industriales. En este conjunto de datos se modela un motor turbofán de doble eje con flujo de derivación integrando ventilador de entrada, compresores de alta y baja presión, cámara de combustión y turbinas de alta y baja presión.\\[.15cm]
 
-Las simulaciones se estructuran en vuelos de aproximadamente 90 minutos cada una combinando siete condiciones de vuelo distintas para abarcar un perfil típico ascenso desde el nivel del mar hasta un modo crucero a 35000 pies de altura. Posteriormente se inyecta una falla en un momento específico de uno de los vuelos, la cuál es persistente en todos los vuelos restantes, lo que provoca una aceleración en el envejecimiento del motor hasta que alcanza un estado de falla.\\[.15cm]
+Las simulaciones se estructuran en vuelos de aproximadamente 90 minutos cada una combinando diferentes condiciones de vuelo distintas para abarcar un perfil típico ascenso desde el nivel del mar hasta un modo crucero a 35000 pies de altura. Posteriormente se inyecta una falla en un momento específico de uno de los vuelos, la cuál es persistente en todos los vuelos restantes, y esto es lo que provoca una aceleración en el envejecimiento del motor hasta que alcanza un estado de falla.\\[.15cm]
 
-Una de las principales virtudes de este conjunto de datos es que está ordenado en 4 conjuntos de dificultad que va creciendo denominados como FD001, FD002, FD003 y FD004. Estos conjuntos van variando en el número de trayectorias de entrenamiento y pruebas, además de complejidad derivada por el aumento en el número de condiciones operativas y modos de falla.
+Una de las principales virtudes de este conjunto de datos es que está ordenado en 4 conjuntos de dificultad que va creciendo denominados como FD001, FD002, FD003 y FD004. Estos conjuntos van variando en el número de trayectorias de entrenamiento y pruebas, además de complejidad derivada por el aumento en el número de condiciones operativas y modos de falla presentes.
 
 \begin{table}[H]
 \centering
@@ -487,15 +487,21 @@ Una de las principales virtudes de este conjunto de datos es que está ordenado 
 \label{tab:cmapss}
 \begin{tabular}{c c c p{3cm} p{3.2cm}}
 \toprule
-\textbf{Subc.} & \textbf{Entren.} & \textbf{Prueba} & \textbf{Condiciones} & \textbf{Fallas} \\
+\textbf{Subc.} & \textbf{Entren.} & \textbf{Prueba} & \textbf{Condiciones de vuelo} & \textbf{Fallas} \\
 \midrule
 FD001 & 100 & 100 & 1 (nivel del mar) & 1 (HPC) \\
-FD002 & 260 & 259 & 6 (altitudes/cargas) & 1 (HPC) \\
-FD003 & 100 & 100 & 1 (nivel del mar) & 2 (HPC + vent.) \\
-FD004 & 249 & 248 & 6 (múltiples) & 2 (HPC + vent.) \\
+FD002 & 260 & 259 & 6 (múltiples) & 1 (HPC) \\
+FD003 & 100 & 100 & 1 (nivel del mar) & 2 (HPC + fan) \\
+FD004 & 249 & 248 & 6 (múltiples) & 2 (HPC + fan) \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Es importante tomar en cuenta que en el C-MAPSS dataset la falla no se representa como una ruptura repentina, sino como una pérdida gradual de capacidad de flujo y de eficiencia en uno o varios de los módulos rotativos del motor, pueden ser el ventilador (fan), compresor de baja presión (LPC), compresor de alta presión (HPC), turbina de alta presión (HPT) y turbina de baja presión (LPT). Ese deterioro progresivo altera por la física del fenómeno las demás lecturas de temperatura, presión y velocidad, que son las señales a partir de las cuales el modelo de pronóstico debe inferir el RUL. Cabe señalar que el simulador no especifica la causa física de la falla, como podría ser el ensuciamiento de componentes o la erosión de los álabes, únicamente impone una trayectoria de degradación sobre los parámetros de flujo y eficiencia del módulo afectado \cite{saxena2008}.\\[.15cm]
+
+Los cuatro subconjuntos emplean solo dos de esos módulos como origen de la falla. El compresor de alta presión (HPC) es la etapa que eleva la presión del aire antes de la cámara de combustión y su degradación reduce la eficiencia de compresión y el margen operativo del motor, por lo que se manifiesta en un aumento de la temperatura de gases de escape (EGT). El ventilador (fan) es el rotor frontal que genera la mayor parte del empuje por derivación (bypass) y su degradación tiene un efecto de disminución del flujo másico y la eficiencia propulsiva, lo que se traduce en una pérdida de empuje.\\[.15cm]
+
+Con base en lo anterior, FD001 y FD002 consideran un solo modo de falla (HPC), mientras que FD003 y FD004 consideran dos modos simultáneos (HPC y ventilador). La diferencia entre FD001/FD003 y FD002/FD004 no está en las fallas, sino en las condiciones operativas, porque los primeros se simulan a nivel del mar con una sola condición y los segundos con seis combinaciones de altitud, número de Mach y ángulo del acelerador (throttle resolver angle, TRA), lo que introduce una variabilidad adicional en las lecturas de los sensores.
 
 % -----------------------------------------------------------------------------
 % 2.11
